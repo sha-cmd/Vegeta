@@ -16,7 +16,7 @@ import os
 
 PICKLE_FILE_1 = 'data.dat'
 PICKLE_FILE_2 = 'chemin.dat'
-SIZE = 6921
+
 
 global d  # Notre table de données
 
@@ -24,6 +24,7 @@ distances_gpu = pd.read_pickle(PICKLE_FILE_1)  # .drop(['Unnamed: 0'], axis=1).r
 distances_gpu['lieu'] = distances_gpu.columns
 distances_gpu.index = distances_gpu['lieu']
 distances_gpu.drop(['lieu'], axis=1, inplace=True)
+SIZE = len(distances_gpu.index)
 d = distances_gpu.iloc[:SIZE, :SIZE].copy()
 
 
@@ -239,4 +240,4 @@ def christofides():
     write_to_pickle(PICKLE_FILE_2, chemin.road)
 
 
-christofides()
+#christofides()
