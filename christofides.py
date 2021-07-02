@@ -16,7 +16,7 @@ import os
 
 PICKLE_FILE_1 = 'data.dat'
 PICKLE_FILE_2 = 'chemin.dat'
-SIZE = 10
+SIZE = 6921
 
 global d  # Notre table de données
 
@@ -182,7 +182,6 @@ class Graph:
 
     def best_dist(self):
         height_euler_perm = len(self.euler_perms)
-        print(height_euler_perm)
         del self.best_euler_perm_list[:]
         self.best_km = np.float64(-1)
         for i in range(height_euler_perm):
@@ -193,7 +192,6 @@ class Graph:
             for j in range(len(euler_list_cur) - 1):
                 km_cur += self.dist_loc(euler_list_cur[j], euler_list_cur[j + 1])
                 km_cur += self.dist_loc(euler_list_cur[j + 1], self.lieu_3)
-                #print('cur ' , i, ' ', km_cur)
                 if self.best_km < 0:
                     self.best_km = km_cur
                     del self.best_euler_perm_list[:]
@@ -205,7 +203,6 @@ class Graph:
                     self.best_km = km_cur
                     for k in range(len(euler_list_cur)):
                         self.best_euler_perm_list.append(euler_list_cur[k])
-                #print('best ', i , ' ', self.best_km)
     def ret_lieu_str(self, it):
         return self.union_deque[it]
 
@@ -220,9 +217,9 @@ class Graph:
         self.euler_perms = {p for p in itertools.permutations(self.euler_set)}
 
     def __str__(self):
-        return 'Nombre de kilomètre : ' + str(self.km_final) \
+        return 'Nombre de kilomètre : ' + str(int(self.km_final)) \
                 + '\nChemin de départ : ' + str(self.road) \
-                + '\n\nNombre de kilomètre : ' + str(self.km_final) \
+                + '\n\nNombre de kilomètre par christofides : ' + str(int(self.km_final)) + 'km'\
                 + '\nPas deux fois le même lieu : ' + str(
             len(pd.DataFrame(self.road, columns=['lieu'])['lieu'].unique()) == len(self.road)) + ', nombre de lieux totaux : ' + str(len(self.road))
 
@@ -233,14 +230,13 @@ def christofides():
     list_imp, list_imp_sec = impair(list_pm)
     list_imp_pm, km_imp = poids_min_impair(list_imp)
     union = liaison(list_pm, list_imp_sec)
-    print(union)
     chemin = Graph(union)
     for i in range(len(union)):
         chemin.add_edge(i)
     print('fin')
     print(chemin)
-    print('le chemin de poids nominal était de : ', km)
-    #write_to_pickle(PICKLE_FILE_2, chemin.road)
+    print('le chemin de poids nominal était de : ', int(km), 'km')
+    write_to_pickle(PICKLE_FILE_2, chemin.road)
 
 
 christofides()
