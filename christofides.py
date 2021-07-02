@@ -16,7 +16,7 @@ import os
 
 PICKLE_FILE_1 = 'data.dat'
 PICKLE_FILE_2 = 'chemin.dat'
-SIZE = 15
+SIZE = 10
 
 global d  # Notre table de données
 
@@ -162,6 +162,7 @@ class Graph:
                     self.lieu_1 = self.impair_list[0] if (self.impair_list[0] not in self.road) else ''
                     self.lieu_2 = self.impair_list[1] if (self.impair_list[1] not in self.road) else ''
                     self.lieu_3 = self.ret_lieu_str(it + 1) if (self.ret_lieu_str(it + 1) not in self.road) else ''
+                    del self.lieux_list[:]
                     self.lieux_list.append(self.lieu_1)
                     self.lieux_list.append(self.lieu_2)
                     self.lieux_list = [x for x in self.lieux_list if x != '']
@@ -181,6 +182,7 @@ class Graph:
 
     def best_dist(self):
         height_euler_perm = len(self.euler_perms)
+        print(height_euler_perm)
         del self.best_euler_perm_list[:]
         self.best_km = np.float64(-1)
         for i in range(height_euler_perm):
@@ -191,10 +193,10 @@ class Graph:
             for j in range(len(euler_list_cur) - 1):
                 km_cur += self.dist_loc(euler_list_cur[j], euler_list_cur[j + 1])
                 km_cur += self.dist_loc(euler_list_cur[j + 1], self.lieu_3)
+                #print('cur ' , i, ' ', km_cur)
                 if self.best_km < 0:
-                    del self.best_euler_perm_list[:]
                     self.best_km = km_cur
-
+                    del self.best_euler_perm_list[:]
                     for k in range(len(euler_list_cur)):
                         self.best_euler_perm_list.append(euler_list_cur[k])
 
@@ -203,7 +205,7 @@ class Graph:
                     self.best_km = km_cur
                     for k in range(len(euler_list_cur)):
                         self.best_euler_perm_list.append(euler_list_cur[k])
-
+                #print('best ', i , ' ', self.best_km)
     def ret_lieu_str(self, it):
         return self.union_deque[it]
 
@@ -231,6 +233,7 @@ def christofides():
     list_imp, list_imp_sec = impair(list_pm)
     list_imp_pm, km_imp = poids_min_impair(list_imp)
     union = liaison(list_pm, list_imp_sec)
+    print(union)
     chemin = Graph(union)
     for i in range(len(union)):
         chemin.add_edge(i)
