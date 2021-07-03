@@ -7,12 +7,15 @@ Created on Thu Jul  1 11:14:09 2021
 """
 import itertools
 import pandas as pd
+import pandasql as ps
 import numpy as np
 import random
 from collections import deque
 import pytest
 import pickle
 import os
+from pycuda import driver, compiler, gpuarray, tools
+import pycuda.autoinit
 
 PICKLE_FILE_1 = 'data.dat'
 PICKLE_FILE_2 = 'chemin.dat'
@@ -26,6 +29,62 @@ distances_gpu.index = distances_gpu['lieu']
 distances_gpu.drop(['lieu'], axis=1, inplace=True)
 SIZE = len(distances_gpu.index)
 d = distances_gpu.iloc[:SIZE, :SIZE].copy()
+
+
+def matrix():
+    kernel_code_template = """
+    __global__ void MatrixMulKernel(double* a, double* b, double* c)
+    {
+
+        for (int k = 0; k <= %(MATRIX_SIZE)s; ++k) {
+                for (int l = 0; l <= %(MATRIX_SIZE)s; ++l) {
+                        double Aelement = a[l] - a[k];
+                        double Belement = b[l] - b[k];
+                        c[%(MATRIX_SIZE)s * k + l] = sqrt((Aelement*111)*(Aelement*111) + (Belement*80)*(Belement*80));
+                        }
+        }
+
+
+    }
+    """
+
+    matrice = pd.read_excel('export_df_graph.xlsx')
+    NOMBRE = len(matrice)
+    MATRIX_SIZE = NOMBRE  # len(na.iloc[:NOMBRE])
+
+    a_cpu = np.array(matrice['lat'].iloc[:NOMBRE]).reshape((NOMBRE, 1)).astype(np.float64())
+    b_cpu = np.array(matrice['lon'].iloc[:NOMBRE]).reshape((NOMBRE, 1)).astype(np.float64())
+
+    c_cpu = np.dot(a_cpu, b_cpu.T)
+    a_gpu = gpuarray.to_gpu(a_cpu)
+    b_gpu = gpuarray.to_gpu(b_cpu)
+
+    c_gpu = gpuarray.empty((NOMBRE, NOMBRE), np.float64())
+
+    kernel_code = kernel_code_template % {
+        'MATRIX_SIZE': MATRIX_SIZE
+    }
+
+    mod = compiler.SourceModule(kernel_code)
+
+    matrixmul = mod.get_function("MatrixMulKernel")
+
+    matrixmul(
+        a_gpu, b_gpu,
+        c_gpu,
+        block=(5, 5, 1),
+    )
+
+    result = c_gpu.get()
+
+    col_new = dict()
+    for it, x in enumerate(list((matrice['lieu'].unique()))):
+        col_new.update({it: x})
+
+    df_result = pd.DataFrame(result)
+    #print(df_result)
+    df_result = df_result.rename(columns=col_new, index=col_new)
+    write_to_pickle(PICKLE_FILE_1, df_result)
 
 
 def write_to_pickle(path, item):
@@ -152,6 +211,7 @@ class Graph:
         if self.union_deque[it] not in self.road:
             if it >= 1:
                 if it == len(self.union_deque)-1:
+                    print(self.road)
                     self.lieu_0 = self.road[-1]
                     self.lieu_1 = self.ret_lieu_str(it)
                     if self.lieu_1 not in self.road:
@@ -225,7 +285,40 @@ class Graph:
             len(pd.DataFrame(self.road, columns=['lieu'])['lieu'].unique()) == len(self.road)) + ', nombre de lieux totaux : ' + str(len(self.road))
 
 
-def christofides():
+def christofides(genre='Sassafras'):
+    data_orig = pd.read_csv('data.csv', sep=';')
+    data = data_orig.loc[data_orig['genre'] == genre].copy()
+    data.drop('id', axis=1, inplace=True)
+    data.drop('numero', axis=1, inplace=True)
+    mask = data['variete'] == ''
+    data.loc[mask, 'variete'] = 'n. sp.'
+    mask = data['espece'] == ''
+    data.loc[mask, 'espece'] = 'n. sp.'
+    mask = data['domanialite'] == ''
+    data.loc[mask, 'domanialite'] = 'Jardin'
+    data['remarquable'].fillna(value=0, inplace=True)
+    data['remarquable'] = data['remarquable'].map({0.: False, 1.: True})
+    data['remarquable'] = data['remarquable'].convert_dtypes()
+    colonnes = ['arrondissement', 'type_emplacement', 'lieu', 'id_emplacement']
+    for col in colonnes:
+        data[col] = data[col].convert_dtypes(convert_string=True)
+    colonnes = ['stade_developpement', 'espece', 'variete', 'genre', 'libelle_francais', \
+                'complement_addresse', 'domanialite']
+    for col in colonnes:
+        data[col].fillna(value="", inplace=True)
+        data[col] = data[col].convert_dtypes(convert_string=True)
+    lieu_aire = pd.DataFrame(data.pivot_table(index=['lieu'], aggfunc='size'), columns=['aire'])
+    x = lieu_aire.reset_index()
+    q7 = """SELECT  data.lieu as lieu,
+                    data.arrondissement as arrond,
+                    data.geo_point_2d_a as lat,
+                    data.geo_point_2d_b as lon,
+                    x.aire as aire
+                    FROM data INNER JOIN x ON data.lieu == x.lieu ORDER BY lieu"""
+    df_graph = ps.sqldf(q7, locals())
+    df_graph.to_excel('export_df_graph.xlsx')
+
+    matrix()
     list_pm, km = poids_min(d)
     print('le chemin de poids nominal était de : ', km)
     list_imp, list_imp_sec = impair(list_pm)
@@ -240,4 +333,4 @@ def christofides():
     write_to_pickle(PICKLE_FILE_2, chemin.road)
 
 
-#christofides()
+christofides('Alnus')
