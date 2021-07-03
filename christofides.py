@@ -21,14 +21,7 @@ PICKLE_FILE_1 = 'data.dat'
 PICKLE_FILE_2 = 'chemin.dat'
 
 
-global d  # Notre table de données
 
-distances_gpu = pd.read_pickle(PICKLE_FILE_1)  # .drop(['Unnamed: 0'], axis=1).rename(columns={'Unnamed: 0.1':'lieu'})
-distances_gpu['lieu'] = distances_gpu.columns
-distances_gpu.index = distances_gpu['lieu']
-distances_gpu.drop(['lieu'], axis=1, inplace=True)
-SIZE = len(distances_gpu.index)
-d = distances_gpu.iloc[:SIZE, :SIZE].copy()
 
 
 def matrix():
@@ -288,6 +281,7 @@ class Graph:
 def christofides(genre='Sassafras'):
     data_orig = pd.read_csv('data.csv', sep=';')
     data = data_orig.loc[data_orig['genre'] == genre].copy()
+    data = data.drop_duplicates(subset='lieu', ignore_index=True)
     data.drop('id', axis=1, inplace=True)
     data.drop('numero', axis=1, inplace=True)
     mask = data['variete'] == ''
@@ -318,7 +312,18 @@ def christofides(genre='Sassafras'):
     df_graph = ps.sqldf(q7, locals())
     df_graph.to_excel('export_df_graph.xlsx')
 
+    global d  # Notre table de données
+    global SIZE
     matrix()
+
+    distances_gpu = pd.read_pickle(
+        PICKLE_FILE_1)  # .drop(['Unnamed: 0'], axis=1).rename(columns={'Unnamed: 0.1':'lieu'})
+    distances_gpu['lieu'] = distances_gpu.columns
+    distances_gpu.index = distances_gpu['lieu']
+    distances_gpu.drop(['lieu'], axis=1, inplace=True)
+    SIZE = len(distances_gpu.index)
+    d = distances_gpu.iloc[:SIZE, :SIZE].copy()
+
     list_pm, km = poids_min(d)
     print('le chemin de poids nominal était de : ', km)
     list_imp, list_imp_sec = impair(list_pm)
@@ -333,4 +338,4 @@ def christofides(genre='Sassafras'):
     write_to_pickle(PICKLE_FILE_2, chemin.road)
 
 
-christofides('Alnus')
+#christofides('Nyssa')
