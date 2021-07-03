@@ -80,7 +80,7 @@ START = r"""% LaTeX Cookbook, Packt Publishing, 2015
 }
 
 \title{Ville de Paris
-\\Rapport Arboricole}
+\\Rapport Espaces Verts}
 \author{ROMAIN BOYRIE}
 \date{DATE} 
 
@@ -110,22 +110,23 @@ CORPSSECTION = r"""
 #CORPSLEREVENU = r""", \href{LEREVENU}{informations journalistiques}"""
 CORPS = r"""
 \begin{figure}[!htb]
-   \begin{minipage}{0.5\textwidth}
+  % \begin{minipage}[c]{0.5\linewidth}
      \centering
-     \includegraphics[width=0.7\linewidth]{Genre_Stad_Domani_GENRENAME.png}
+     \includegraphics[width=.8\linewidth]{Genre_Stad_Domani_GENRENAME.png}
      \caption{Maturité selon Domanialité}\label{Fig:GSD_GENRENAME}
-   \end{minipage}\hfill
-
-    \begin{minipage}{0.5\textwidth}
-     \centering
-     \includegraphics[width=0.7\linewidth]{Genre_Hauteur_Stad_GENRENAME.png}
-     \caption{Hauteur filtrée suivant Maturité}\label{Fig:GHS_GENRENAME}
-   \end{minipage}
+  % \end{minipage}\hfill
 \end{figure}
 \begin{figure}[!htb]
-   %\begin{minipage}{0.5\textwidth}
+%    \begin{minipage}[c]{0.5\linewidth}
      \centering
-     \includegraphics[width=0.7\linewidth]{Genre_Hauteur_Domani_GENRENAME.png}
+     \includegraphics[width=.8\linewidth]{Genre_Hauteur_Stad_GENRENAME.png}
+     \caption{Hauteur filtrée suivant Maturité}\label{Fig:GHS_GENRENAME}
+ %  \end{minipage}
+\end{figure}
+\begin{figure}[!htb]
+   %\begin{minipage}[c]{1\linewidth}
+     \centering
+     \includegraphics[width=0.8\linewidth]{Genre_Hauteur_Domani_GENRENAME.png}
      \caption{Hauteur filtrée selon domanité}\label{Fig:GHD_GENRENAME}
    %\end{minipage}\hfill
 \end{figure}
@@ -334,16 +335,38 @@ class Report:
                     # except:
                     #     pass
                     fout.write(CORPS.replace('PARAMETRE', name).replace('TITRE', name).replace('GENRENAME', name))
-                    fout.write(
-                         TABLE.replace('PRIX', str(self.quant_gen['arbres'].loc[self.quant_gen['genre'] == name].values[0]).replace('TITRE', name))
+                    try :
+                        fout.write(
+                                TABLE.replace('PRIX', str(self.quant_gen['arbres'].loc[self.quant_gen['genre'] == name].values[0]).replace('TITRE', name))
                                                     .replace('ROR', str(self.quant_gen['espece'].loc[self.quant_gen['genre'] == name].values[0]))
-                                                    .replace('LOG', str(self.quant_gen_filtered['haut'].loc[self.quant_gen['genre'] == name].values[0]))
+                                                    .replace('LOG', str(self.quant_gen_filtered['haut'].loc[self.quant_gen_filtered['genre'] == name].values[0]))
                                                     .replace('CINQ', str(self.quant_gen['remarq'].loc[self.quant_gen['genre'] == name].values[0]))
                                                     .replace('TROIS', str(self.quant_gen['lieu'].loc[self.quant_gen['genre'] == name].values[0]))
                                                     .replace('UN', str(self.quant_gen['pourcent'].loc[self.quant_gen['genre'] == name].values[0]))
                             # .replace('10J',str(round(Decimal(synthese.loc[synthese['Nom'] == name]['10jours'].values[0]),2)))
                             # .replace('6J',str(round(Decimal(synthese.loc[synthese['Nom'] == name]['25jours'].values[0]),2)))
                                                     .replace('RISQUE', str(self.quant_gen['variete'].loc[self.quant_gen['genre'] == name].values[0])))
+                    except:
+                        global sortie
+                        sortie = name
+
+                        fout.write(
+                            TABLE.replace('PRIX', str(
+                                self.quant_gen['arbres'].loc[self.quant_gen['genre'] == name].values[0]).replace(
+                                'TITRE', name))
+                                .replace('ROR',
+                                         str(self.quant_gen['espece'].loc[self.quant_gen['genre'] == name].values[0]))
+                                .replace('LOG', str(0))
+                                .replace('CINQ',
+                                         str(self.quant_gen['remarq'].loc[self.quant_gen['genre'] == name].values[0]))
+                                .replace('TROIS',
+                                         str(self.quant_gen['lieu'].loc[self.quant_gen['genre'] == name].values[0]))
+                                .replace('UN',
+                                         str(self.quant_gen['pourcent'].loc[self.quant_gen['genre'] == name].values[0]))
+                                # .replace('10J',str(round(Decimal(synthese.loc[synthese['Nom'] == name]['10jours'].values[0]),2)))
+                                # .replace('6J',str(round(Decimal(synthese.loc[synthese['Nom'] == name]['25jours'].values[0]),2)))
+                                .replace('RISQUE',
+                                         str(self.quant_gen['variete'].loc[self.quant_gen['genre'] == name].values[0])))
 
                     # if strategie.loc[strategie['Nom']==name].empty:
                     #    pass
@@ -356,7 +379,7 @@ class Report:
                     #     pass
                     fout.write(r'\newpage')
             fout.write(END)
-
+            print('\n\n\n\n' + name)
     def graph_sta_dev_num(self):
         dom_order_list = list((self.d['domanialite'].unique())).sort()
 
@@ -372,8 +395,11 @@ class Report:
         dom_order_list = list((self.d['domanialite'].unique())).sort()
         for genre in self.genres_list:
             f = plt.figure(figsize=(20, 10))
-            ax = sns.violinplot(x="domanialite", y="hauteur_m", data=self.d_filtered.loc[self.d_filtered['genre'] == genre], inner=None, scale='width')
-            ax = sns.stripplot(order=dom_order_list, x="domanialite", y="hauteur_m", data=self.d_filtered.loc[self.d_filtered['genre'] == genre]).set(title=genre.title())
+            try:
+                ax = sns.violinplot(x="domanialite", y="hauteur_m", data=self.d_filtered.loc[self.d_filtered['genre'] == genre], inner=None, scale='width')
+                ax = sns.stripplot(order=dom_order_list, x="domanialite", y="hauteur_m", data=self.d_filtered.loc[self.d_filtered['genre'] == genre]).set(title=genre.title())
+            except:
+                pass
             f.savefig('Images/Genre_Hauteur_Domani_' + genre + '.png')
             plt.clf()
             plt.close('all')
