@@ -1,0 +1,32 @@
+@startmindmap
+'https://plantuml.com/mindmap-diagram
+
+caption Préparation des données
+title Méthodologie Analytique
+
+* <&flag>Paris Open Data
+** Données Manquantes
+*** Stade de\ndéveloppement
+**** Changer\nen catégorie\nordonnée
+*** Domanialité
+**** Remplir une\nvaleur vide\nà partir\ndu lieu
+** Données Aberrante
+*** Hauteur\nCirconférence
+**** Filtrage \rpar la Limite\nextérieur de\nconfiance
+***** Sélection des arbres\nextérieur à [Q_1, Q_3]
+** Valeurs Nulles
+*** Remplacement\npour indication,\npar lettre ou chiffre
+
+header
+My super header
+endheader
+
+center footer Projet n°2 Paris Smart City
+
+legend right
+  Les données
+  sont prêtes
+  pour une
+  Analyse Univariée
+endlegend
+@endmindmap

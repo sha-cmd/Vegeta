@@ -1,0 +1,18 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+autonumber
+
+OpenData -> DataScientist: Download
+DataScientist --> DataScientist: Loading
+DataScientist --> Analytic: Preparation
+Analytic --> Analytic: Make random\nsampling, get\navg and std
+Analytic --> Analytic: Compare\nall with\navg and std
+Analytic -> Optimiser: Send a list\nof abnormal\ntrees
+Optimiser -> Optimiser: Quantifying
+Optimiser -> Christofides: Request for\nthe road
+Analytic <- Optimiser: Ask for details on this list
+Analytic <-- Christofides: Send a short roadmap
+Analytic --> Analytic: Makes Graphics
+Analytic --> User: Send a report
+@enduml

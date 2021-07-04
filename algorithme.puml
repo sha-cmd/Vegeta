@@ -1,0 +1,32 @@
+@startmindmap
+'https://plantuml.com/mindmap-diagram
+
+caption MindMap Data Science
+title Optimisation des tournées d'entretien
+
+* Data
+** Nom Français
+*** Si non,\nUsage du\nGenre
+*** Pour chaque \nNom\nFrançais
+**** Pour chaque\nstade de\ndéveloppement
+***** Calcul des\nQuantiles\n80%\n20%
+***** Filtrage par\nles quantiles\n(hauteurs\nou\ncirconférences)
+****** Écriture en\n2 DataFrames
+******* Calcul du\ntrajet minimum
+******* Calcul\nGraphiques
+******* Report avec\n2 chapitres\n(sup & inf)\ngraphiques
+
+header
+My super header
+endheader
+
+center footer Projet N°2 Paris Smart City
+
+legend right
+  Mesures
+  Concrètes
+  Pour Le
+  Client
+  Final
+endlegend
+@endmindmap
