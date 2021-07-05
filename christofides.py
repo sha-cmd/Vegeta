@@ -279,34 +279,37 @@ class Graph:
 
 
 def christofides(genre='Sassafras'):
-    data_orig = pd.read_csv('data.csv', sep=';')
-    data = data_orig.loc[data_orig['genre'] == genre].copy()
+    #data_orig = pd.read_csv('data.csv', sep=';')
+
+    data_orig = pd.read_excel('actions_0.98_0.02.xlsx')
+    #data = data_orig.loc[data_orig['genre'] == genre].copy()
+    data = data_orig.loc[data_orig['soin'] == 'à surveiller'].copy()
     data = data.drop_duplicates(subset='lieu', ignore_index=True)
-    data.drop('id', axis=1, inplace=True)
-    data.drop('numero', axis=1, inplace=True)
-    mask = data['variete'] == ''
-    data.loc[mask, 'variete'] = 'n. sp.'
-    mask = data['espece'] == ''
-    data.loc[mask, 'espece'] = 'n. sp.'
-    mask = data['domanialite'] == ''
-    data.loc[mask, 'domanialite'] = 'Jardin'
-    data['remarquable'].fillna(value=0, inplace=True)
-    data['remarquable'] = data['remarquable'].map({0.: False, 1.: True})
-    data['remarquable'] = data['remarquable'].convert_dtypes()
-    colonnes = ['arrondissement', 'type_emplacement', 'lieu', 'id_emplacement']
-    for col in colonnes:
-        data[col] = data[col].convert_dtypes(convert_string=True)
-    colonnes = ['stade_developpement', 'espece', 'variete', 'genre', 'libelle_francais', \
-                'complement_addresse', 'domanialite']
-    for col in colonnes:
-        data[col].fillna(value="", inplace=True)
-        data[col] = data[col].convert_dtypes(convert_string=True)
+#    data.drop('id', axis=1, inplace=True)
+ #   data.drop('numero', axis=1, inplace=True)
+ #   mask = data['variete'] == ''
+ #   data.loc[mask, 'variete'] = 'n. sp.'
+ #   mask = data['espece'] == ''
+ #   data.loc[mask, 'espece'] = 'n. sp.'
+ #   mask = data['domanialite'] == ''
+ #   data.loc[mask, 'domanialite'] = 'Jardin'
+ #   data['remarquable'].fillna(value=0, inplace=True)
+ #   data['remarquable'] = data['remarquable'].map({0.: False, 1.: True})
+ #   data['remarquable'] = data['remarquable'].convert_dtypes()
+ #   colonnes = ['arrondissement', 'type_emplacement', 'lieu', 'id_emplacement']
+ #   for col in colonnes:
+ #       data[col] = data[col].convert_dtypes(convert_string=True)
+ #   colonnes = ['stade_developpement', 'espece', 'variete', 'genre', 'libelle_francais', \
+  #              'complement_addresse', 'domanialite']
+ #   for col in colonnes:
+  #      data[col].fillna(value="", inplace=True)
+   #     data[col] = data[col].convert_dtypes(convert_string=True)
     lieu_aire = pd.DataFrame(data.pivot_table(index=['lieu'], aggfunc='size'), columns=['aire'])
     x = lieu_aire.reset_index()
     q7 = """SELECT  data.lieu as lieu,
                     data.arrondissement as arrond,
-                    data.geo_point_2d_a as lat,
-                    data.geo_point_2d_b as lon,
+                    data.lat as lat,
+                    data.lon as lon,
                     x.aire as aire
                     FROM data INNER JOIN x ON data.lieu == x.lieu ORDER BY lieu"""
     df_graph = ps.sqldf(q7, locals())
@@ -338,4 +341,4 @@ def christofides(genre='Sassafras'):
     write_to_pickle(PICKLE_FILE_2, chemin.road)
 
 
-#christofides('Nyssa')
+christofides('Nyssa')
