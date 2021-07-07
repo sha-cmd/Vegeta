@@ -41,7 +41,7 @@ def matrix():
     }
     """
 
-    matrice = pd.read_excel('export_df_graph.xlsx')
+    matrice = pd.read_excel('data/export_df_graph.xlsx')
     NOMBRE = len(matrice)
     MATRIX_SIZE = NOMBRE  # len(na.iloc[:NOMBRE])
 
@@ -278,10 +278,10 @@ class Graph:
             len(pd.DataFrame(self.road, columns=['lieu'])['lieu'].unique()) == len(self.road)) + ', nombre de lieux totaux : ' + str(len(self.road))
 
 
-def christofides(genre='Sassafras'):
+def christofides(q_h=0.99, q_b=0.01):
     #data_orig = pd.read_csv('data.csv', sep=';')
-
-    data_orig = pd.read_excel('actions_0.98_0.02.xlsx')
+    data_surv_lieu = pd.read_excel('data/quant_surveiller_lieu_q_h_'+ str(q_h) + '_' + str(q_b) + '.xlsx')
+    data_orig = pd.read_excel('data/actions_'+ str(q_h) + '_' + str(q_b) + '.xlsx')
     #data = data_orig.loc[data_orig['genre'] == genre].copy()
     data = data_orig.loc[data_orig['soin'] == 'à surveiller'].copy()
     data = data.drop_duplicates(subset='lieu', ignore_index=True)
@@ -313,32 +313,74 @@ def christofides(genre='Sassafras'):
                     x.aire as aire
                     FROM data INNER JOIN x ON data.lieu == x.lieu ORDER BY lieu"""
     df_graph = ps.sqldf(q7, locals())
-    df_graph.to_excel('export_df_graph.xlsx')
+    arr_list = [
 
-    global d  # Notre table de données
-    global SIZE
-    matrix()
+        'PARIS 1ER ARRDT',
+        'PARIS 2E ARRDT',
+        'PARIS 3E ARRDT',
+        'PARIS 4E ARRDT',
+        'PARIS 5E ARRDT',
+        'PARIS 6E ARRDT',
+        'PARIS 7E ARRDT',
+        'PARIS 8E ARRDT',
+        'PARIS 9E ARRDT',
+        'PARIS 10E ARRDT',
+        'PARIS 11E ARRDT',
+        'PARIS 12E ARRDT',
+        'PARIS 13E ARRDT',
+        'PARIS 14E ARRDT',
+        'PARIS 15E ARRDT',
+        'PARIS 16E ARRDT',
+        'PARIS 17E ARRDT',
+        'PARIS 18E ARRDT',
+        'PARIS 19E ARRDT',
+        'PARIS 20E ARRDT',
+        'BOIS DE BOULOGNE',
+        'BOIS DE VINCENNES',
+        'HAUTS-DE-SEINE',
+        'SEINE-SAINT-DENIS',
+        'VAL-DE-MARNE']
+    road_dict = dict()
+    km_dict = dict()
+    km_pm_dict = dict()
+    nb_lieu_dict = dict()
+    info_dict = dict()
+    for arr in arr_list:
+        df_graph.loc[df_graph['arrond'] == arr].to_excel('data/export_df_graph.xlsx')
 
-    distances_gpu = pd.read_pickle(
-        PICKLE_FILE_1)  # .drop(['Unnamed: 0'], axis=1).rename(columns={'Unnamed: 0.1':'lieu'})
-    distances_gpu['lieu'] = distances_gpu.columns
-    distances_gpu.index = distances_gpu['lieu']
-    distances_gpu.drop(['lieu'], axis=1, inplace=True)
-    SIZE = len(distances_gpu.index)
-    d = distances_gpu.iloc[:SIZE, :SIZE].copy()
+        global d  # Notre table de données
+        global SIZE
+        matrix()
 
-    list_pm, km = poids_min(d)
-    print('le chemin de poids nominal était de : ', km)
-    list_imp, list_imp_sec = impair(list_pm)
-    list_imp_pm, km_imp = poids_min_impair(list_imp)
-    union = liaison(list_pm, list_imp_sec)
-    chemin = Graph(union)
-    for i in range(len(union)):
-        chemin.add_edge(i)
-    print('fin')
-    print(chemin)
-    print('le chemin de poids nominal était de : ', int(km), 'km')
-    write_to_pickle(PICKLE_FILE_2, chemin.road)
+        distances_gpu = pd.read_pickle(
+            PICKLE_FILE_1)  # .drop(['Unnamed: 0'], axis=1).rename(columns={'Unnamed: 0.1':'lieu'})
+        distances_gpu['lieu'] = distances_gpu.columns
+        distances_gpu.index = distances_gpu['lieu']
+        distances_gpu.drop(['lieu'], axis=1, inplace=True)
+        SIZE = len(distances_gpu.index)
+        d = distances_gpu.iloc[:SIZE, :SIZE].copy()
+
+        list_pm, km = poids_min(d)
+        print('le chemin de poids nominal était de : ', km)
+        list_imp, list_imp_sec = impair(list_pm)
+        list_imp_pm, km_imp = poids_min_impair(list_imp)
+        union = liaison(list_pm, list_imp_sec)
+
+        chemin = Graph(union)
+        for i in range(len(union)):
+            chemin.add_edge(i)
+        print('fin')
+        print(chemin)
+        print('le chemin de poids nominal était de : ', int(km), 'km')
+        road_dict.update({arr: chemin.road})
+        km_dict.update({arr: chemin.km_final})
+        km_pm_dict.update({arr: km})
+        nb_lieu_dict.update({arr: len(chemin.road)})
+    info_dict.update({'road': road_dict})
+    info_dict.update({'km':km_dict})
+    info_dict.update({'km_pm': km_pm_dict})
+    info_dict.update({'nb_lieu': nb_lieu_dict})
+    write_to_pickle(PICKLE_FILE_2 + '_' + str(q_h) + '_' + str(q_b), info_dict)
 
 
-christofides('Nyssa')
+#christofides()
