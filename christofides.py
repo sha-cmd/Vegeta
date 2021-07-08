@@ -99,7 +99,7 @@ def poids_min(d):
         for proxima in range(SIZE):  # Pour la taille
             next_ville = next_try.iloc[proxima:].index[0]
             if SIZE == len(visite):
-                print('Chemin de poids minimum terminé')
+                # Chemin de poids minimum calculé
                 break
             elif set_visite.isdisjoint(set({next_ville})):  # not in visite.values()
                 visite.update({pos_chem + 1: next_ville})
@@ -139,7 +139,7 @@ def poids_min_impair(impaire_d):
         for proxima in range(1, len(impaire_d)):  # Pour la taille
             next_ville = next_try.iloc[proxima:].index[0]
             if len(imp_visite) == len(impaire_d):
-                print('Chemin impair de poids minimum terminé')
+                # Chemin impair de poids minimum terminé
                 break
             elif imp_set_visite.isdisjoint(set({next_ville})):  # not in visite.values()
                 imp_visite.update({pos_chem + 2: next_ville})
@@ -204,7 +204,6 @@ class Graph:
         if self.union_deque[it] not in self.road:
             if it >= 1:
                 if it == len(self.union_deque)-1:
-                    print(self.road)
                     self.lieu_0 = self.road[-1]
                     self.lieu_1 = self.ret_lieu_str(it)
                     if self.lieu_1 not in self.road:
@@ -271,9 +270,9 @@ class Graph:
         self.euler_perms = {p for p in itertools.permutations(self.euler_set)}
 
     def __str__(self):
-        return 'Nombre de kilomètre : ' + str(int(self.km_final)) \
+        return 'Nombre de kilomètre par Christofides : ' + str(int(self.km_final)) + 'km'\
                 + '\nChemin de départ : ' + str(self.road) \
-                + '\n\nNombre de kilomètre par christofides : ' + str(int(self.km_final)) + 'km'\
+                + '\n\nNombre de kilomètre par Christofides : ' + str(int(self.km_final)) + 'km'\
                 + '\nPas deux fois le même lieu : ' + str(
             len(pd.DataFrame(self.road, columns=['lieu'])['lieu'].unique()) == len(self.road)) + ', nombre de lieux totaux : ' + str(len(self.road))
 
@@ -346,6 +345,7 @@ def christofides(q_h=0.99, q_b=0.01):
     nb_lieu_dict = dict()
     info_dict = dict()
     for arr in arr_list:
+        print('Pour l\'arrondissFement ' + arr + ' : \n')
         df_graph.loc[df_graph['arrond'] == arr].to_excel('data/export_df_graph.xlsx')
 
         global d  # Notre table de données
@@ -361,7 +361,7 @@ def christofides(q_h=0.99, q_b=0.01):
         d = distances_gpu.iloc[:SIZE, :SIZE].copy()
 
         list_pm, km = poids_min(d)
-        print('le chemin de poids nominal était de : ', km)
+        print('Au départ le chemin de poids mininum est : ', km)
         list_imp, list_imp_sec = impair(list_pm)
         list_imp_pm, km_imp = poids_min_impair(list_imp)
         union = liaison(list_pm, list_imp_sec)
@@ -369,9 +369,9 @@ def christofides(q_h=0.99, q_b=0.01):
         chemin = Graph(union)
         for i in range(len(union)):
             chemin.add_edge(i)
-        print('fin')
         print(chemin)
-        print('le chemin de poids nominal était de : ', int(km), 'km')
+
+        print('le chemin de poids nominal était de : ', int(km), 'km\n[fin]\n\n')
         road_dict.update({arr: chemin.road})
         km_dict.update({arr: chemin.km_final})
         km_pm_dict.update({arr: km})
@@ -382,5 +382,8 @@ def christofides(q_h=0.99, q_b=0.01):
     info_dict.update({'nb_lieu': nb_lieu_dict})
     write_to_pickle(PICKLE_FILE_2 + '_' + str(q_h) + '_' + str(q_b), info_dict)
 
+def main():
+    christofides()
 
-#christofides()
+if __name__ == '__main__':
+    main()
