@@ -1,32 +1,14 @@
-@startmindmap
-'https://plantuml.com/mindmap-diagram
+@startuml
+'https://plantuml.com/sequence-diagram
 
-caption MindMap Data Science
-title Optimisation des tournées d'entretien
+autonumber
 
-* Data
-** Nom Français
-*** Si non,\nUsage du\nGenre
-*** Pour chaque \nNom\nFrançais
-**** Pour chaque\nstade de\ndéveloppement
-***** Calcul des\nQuantiles\n80%\n20%
-***** Filtrage par\nles quantiles\n(hauteurs\nou\ncirconférences)
-****** Écriture en\n2 DataFrames
-******* Calcul du\ntrajet minimum
-******* Calcul\nGraphiques
-******* Report avec\n2 chapitres\n(sup & inf)\ngraphiques
-
-header
-My super header
-endheader
-
-center footer Projet N°2 Paris Smart City
-
-legend right
-  Mesures
-  Concrètes
-  Pour Le
-  Client
-  Final
-endlegend
-@endmindmap
+OpenData -> Surveillance: liste des\nlieux à voir
+Surveillance -> Surveillance: paquetage\npar\narrondissement
+Surveillance --> GPU: Calcul de\nla matrice\ndes distances\nentre chaque\nlieu
+GPU --> Christofides: Calcul du\nchemin de\npoids\nminimum
+Christofides -> Christofides: Calcul des\nchemins impairs
+Christofides -> Christofides: Calcul de la\npermutation\nla + courte
+Christofides -> Pandas: Écriture\nen colonne\ndans le tableur
+Pandas --> User: Réception\ndu\nfichier
+@enduml
