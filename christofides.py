@@ -277,7 +277,7 @@ class Graph:
             len(pd.DataFrame(self.road, columns=['lieu'])['lieu'].unique()) == len(self.road)) + ', nombre de lieux totaux : ' + str(len(self.road))
 
 
-def christofides(q_h=0.99, q_b=0.01):
+def christofides(q_h=0.95, q_b=0.05):
     #data_orig = pd.read_csv('data.csv', sep=';')
     data_surv_lieu = pd.read_excel('data/quant_surveiller_lieu_q_h_'+ str(q_h) + '_' + str(q_b) + '.xlsx')
     data_orig = pd.read_excel('data/actions_'+ str(q_h) + '_' + str(q_b) + '.xlsx')
@@ -345,7 +345,7 @@ def christofides(q_h=0.99, q_b=0.01):
     nb_lieu_dict = dict()
     info_dict = dict()
     for arr in arr_list:
-        print('Pour l\'arrondissFement ' + arr + ' : \n')
+        print('Pour l\'arrondissement ' + arr + ' : \n')
         df_graph.loc[df_graph['arrond'] == arr].to_excel('data/export_df_graph.xlsx')
 
         global d  # Notre table de données
@@ -380,7 +380,7 @@ def christofides(q_h=0.99, q_b=0.01):
     info_dict.update({'km':km_dict})
     info_dict.update({'km_pm': km_pm_dict})
     info_dict.update({'nb_lieu': nb_lieu_dict})
-    write_to_pickle(PICKLE_FILE_2 + '_' + str(q_h) + '_' + str(q_b), info_dict)
+    write_to_pickle('data/chemin'+ '_' + str(q_h) + '_' + str(q_b) + '.dat', info_dict)
 
 def main():
     christofides()
