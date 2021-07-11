@@ -6,9 +6,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import christofides
 
+from scipy.stats import linregress
+
 global data_mapping
 
-data_filtre = pd.read_excel('data/data_filtre.xlsx')
+# data_filtre = pd.read_excel('data/data_filtre.xlsx')
 data = pd.read_csv('data.csv', sep=';')
 
 arr_list = [
@@ -46,7 +48,9 @@ def valeur(colonne, it, arr, data_m):
     """
     return data_m[colonne].loc[data_m['arrondissement'] == arr].reset_index().iloc[it].values[1]
 
+
 def carte_positions(q_h, q_b):
+    global data_mapping
     """
     Permet de créer des cartes avec la bibliothèque folium.
     :param q_h: quantile passe-haut
@@ -78,18 +82,62 @@ def carte_positions(q_h, q_b):
                 location=[valeur('geo_point_2d_a', i, arr, data_map),
                           valeur('geo_point_2d_b', i, arr, data_map)],
 
-                popup=str(valeur('genre', i, arr, data_map)) + ', ' +
-                      str(valeur('espece', i, arr, data_map)) + ', ' + str(
-                    valeur('variete', i, arr, data_map)) + ', ' +
-                      str(valeur('libelle_francais', i, arr, data_map))
-                      + ', haut. : ' + str(float(valeur('hauteur_m', i, arr, data_map))) +
-                      'm, circ. : ' + str(float(valeur('circonference_cm', i, arr, data_map))) + 'cm, action à prendre : ' +
-                      valeur('soin', i, arr, data_map),
+                popup=str(valeur('genre', i, arr, data_map)) + ', '
+                + str(valeur('espece', i, arr, data_map)) + ', '
+                + str(valeur('variete', i, arr, data_map)) + ', '
+                + str(valeur('libelle_francais', i, arr, data_map))
+                + ', haut. : ' + str(float(valeur('hauteur_m', i, arr, data_map))) +
+                'm, circ. : ' + str(float(valeur('circonference_cm', i, arr, data_map))) + 'cm, action à prendre : '
+                + 'à surveiller',
                 icon=folium.Icon(icon=valeur('poi_icon', i, arr, data_map), color=valeur('poi', i, arr, data_map)),
             ).add_to(m)
-        m.save("data/map/index_" + '_'.join(arr.split(' ')) + '_' + str(q_h) + '_' +  str(q_b) +".html")
-        #data_map = pd.DataFrame()
+        m.save("data/map/index_" + '_'.join(arr.split(' ')) + '_' + str(q_h) + '_' + str(q_b) + ".html")
+
         del m
+    return
+
+def valeur_danger(colonne, it, data_m):
+    """
+    Fonction utilisée pour clarifier le code dans l'autre fonction carte_positions().
+    Permet d'éviter l'écriture de cette ligne dans l'autre partie du code.
+    """
+    return data_m[colonne].reset_index().iloc[it].values[1]
+
+def carte_danger(q_h, q_b):
+    global data_mapping
+    """
+    Permet de créer des cartes avec la bibliothèque folium.
+    :param q_h: quantile passe-haut
+    :param q_b: quantile passe-bas
+    :return: void
+    """
+    data = pd.read_excel('data/new_data_end_' + str(q_h) + '_' + str(q_b) + '.xlsx')
+    data_mapping = data.loc[data['ratio'] < 0.5]
+    poi_list = ['red']
+    poi_icon_list = ['heart']
+
+    # Boucle de fabrication des cartes par Arrondissement
+    m = folium.Map(location=[48.857722, 2.321031], zoom_start=12, tiles="Stamen Terrain")
+    data_map = data_mapping.copy()#.loc[data_mapping['arrondissement'] == arr]
+    print('carte de danger')
+    for i in range(len(data_map['geo_point_2d_a'])):
+        # print(len(data_map['geo_point_2d_a'].loc[data_map['arrondissement']==arr]))
+        folium.Marker(
+            location=[valeur_danger('geo_point_2d_a', i, data_map),
+                      valeur_danger('geo_point_2d_b', i, data_map)],
+
+            popup=str(valeur_danger('genre', i,  data_map)) + ', '
+            + str(valeur_danger('espece', i,  data_map)) + ', '
+            + str(valeur_danger('variete', i,  data_map)) + ', '
+            + str(valeur_danger('libelle_francais', i,  data_map))
+            + ', haut. : ' + str(float(valeur_danger('hauteur_m', i,  data_map))) +
+            'm, circ. : ' + str(float(valeur_danger('circonference_cm', i,  data_map))) + 'cm, action à prendre : '
+            + valeur_danger('soin', i, data_map),
+            icon=folium.Icon(icon='heart', color='red'),
+        ).add_to(m)
+    m.save("data/map/index" + '_' + 'danger' + ".html")
+
+    del m
     return
 
 
@@ -100,7 +148,8 @@ def graphiques(q_h, q_b):
     :param q_b: Quantile passe-bas
     :return: void
     """
-### Creation du nombre d'arbre par arrondissement
+
+    # Creation du nombre d'arbre par arrondissement
     actions = pd.read_excel('data/new_data_end_' + str(q_h) + '_' + str(q_b) + '.xlsx')
     q9 = """SELECT actions.arrondissement as arr, 
                         COUNT(*) as total
@@ -125,8 +174,6 @@ def graphiques(q_h, q_b):
         """
     actions_hist_verif = ps.sqldf(qa10, locals())
 
-    actions_hist_verif
-
     q11 = """SELECT actions_hist.arr as arr, 
                         actions_hist.total,
                         actions_hist_soin.surveiller,
@@ -138,14 +185,17 @@ def graphiques(q_h, q_b):
         """
 
     actions_hist_merge = ps.sqldf(q11, locals())
+    actions_hist_merge.to_excel('data/quant_surveiller_arrondissement_q_h_' + str(q_h) + '_' + str(q_b) + '.xlsx')
 
+    # Graphiques
     data_hist_chart = actions_hist_merge.copy()
 
     sns.set_theme(style="whitegrid")
 
     # Initialize the matplotlib figure
     f, ax = plt.subplots(figsize=(16, 15))
-
+    plt.title('Arbres à surveiller et normaux',
+              fontdict={'fontsize': 21, 'fontweight': 'bold'})
     # Load the example car crash dataset
     crashes = data_hist_chart
     # Plot the total crashes
@@ -158,15 +208,11 @@ def graphiques(q_h, q_b):
     sns.barplot(order=arr_list, x="surveiller", y="arr", data=crashes,
                 label="à Surveiller", color="b")
 
-    #sns.set_color_codes("dark")
-    #sns.barplot(order=arr_list, x="verifier", y="arr", data=crashes,
-    #            label="à Vérifier", color="b")
-
     # Add a legend and informative axis label
     ax.legend(ncol=2, loc="lower right", frameon=True)
     ax.set(xlim=(0, 15000), ylabel="",
            xlabel="Les arbres par arrondissement")
-    sns_plot = sns.despine(left=True, bottom=True)
+    sns.despine(left=True, bottom=True)
     f.savefig('img/arbre_a_surveiller_par_arrondissement_q_h_' + str(q_h) + '_' + str(q_b) + '.png')
     plt.clf()
     plt.close('all')
@@ -175,7 +221,8 @@ def graphiques(q_h, q_b):
 
     # Initialize the matplotlib figure
     f, ax = plt.subplots(figsize=(16, 15))
-
+    plt.title('Arbres à vérifier et normaux',
+              fontdict={'fontsize': 21, 'fontweight': 'bold'})
     # Load the example car crash dataset
     crashes = data_hist_chart
     # Plot the total crashes
@@ -191,16 +238,14 @@ def graphiques(q_h, q_b):
     ax.legend(ncol=2, loc="lower right", frameon=True)
     ax.set(xlim=(0, 15000), ylabel="",
            xlabel="Les arbres par arrondissement")
-    sns_plot = sns.despine(left=True, bottom=True)
+    sns.despine(left=True, bottom=True)
     f.savefig('img/arbre_a_verifier_par_arrondissement_q_h_' + str(q_h) + '_' + str(q_b) + '.png')
     plt.clf()
     plt.close('all')
 
-    actions = pd.read_excel('data/actions_' + str(q_h) + '_' + str(q_b) + '.xlsx' )
-    # for age in list(actions.unique()):
-    sns.set_theme(style="whitegrid")
+    actions = pd.read_excel('data/actions_' + str(q_h) + '_' + str(q_b) + '.xlsx')
 
-    # df_age_quant_sante = actions[['avg_h','sante', 'avg_c', 'quantite_var_par_age']].loc[actions['age'] == 'A']# age instead of 'J'
+    sns.set_theme(style="whitegrid")
 
     f, ax = plt.subplots(figsize=(8.5, 8.5))
     sns.despine(f, left=True, bottom=True)
@@ -213,18 +258,17 @@ def graphiques(q_h, q_b):
     sns.scatterplot(x="value_moy_c", y='value_moy_h',
                     hue="sante", style_order=['J', 'P', 'JA', 'A', 'M'],
                     size='quantite_var_par_age', sizes=(50, 200),
-                    style='age', size_order=(actions['nb_arbre_meme_libel'].min(), actions['nb_arbre_meme_libel'].min()),
+                    style='age', size_order=(actions['nb_arbre_meme_libel'].min(),
+                                             actions['nb_arbre_meme_libel'].min()),
                     data=actions[
-                        ['value_moy_h', 'arrondissement', 'value_moy_c', 'age', 'sante', 'soin', 'quantite_var_par_age']],
+                        ['value_moy_h', 'arrondissement', 'value_moy_c',
+                         'age', 'sante', 'soin', 'quantite_var_par_age']],
                     ci="sd", ax=ax)
     f.savefig('img/arbres_surveillance_lineaire_' + str(q_h) + '_' + str(q_b) + '.png')
     plt.clf()
     plt.close('all')
 
-    # for age in list(actions.unique()):
     sns.set_theme(style="whitegrid")
-
-    # df_age_quant_sante = actions[['avg_h','sante', 'avg_c', 'quantite_var_par_age']].loc[actions['age'] == 'A']# age instead of 'J'
 
     f, ax = plt.subplots(figsize=(8.5, 8.5))
     sns.despine(f, left=True, bottom=True)
@@ -235,22 +279,20 @@ def graphiques(q_h, q_b):
     plt.xlabel('La hauteur moyenne')
     plt.xscale('Symlog')
     plt.yscale('Linear')
-    # clarity_ranking = ['M','A','JA','P';'J']
     sns.scatterplot(x="value_moy_c", y='value_moy_h',
                     hue="soin", style_order=['J', 'P', 'JA', 'A', 'M'],
                     size='quantite_var_par_age', sizes=(50, 200),
-                    style='age', size_order=(actions['nb_arbre_meme_libel'].min(), actions['nb_arbre_meme_libel'].min()),
+                    style='age', size_order=(actions['nb_arbre_meme_libel'].min(),
+                                             actions['nb_arbre_meme_libel'].min()),
                     data=actions[
-                        ['value_moy_h', 'arrondissement', 'value_moy_c', 'age', 'sante', 'soin', 'quantite_var_par_age']],
+                        ['value_moy_h', 'arrondissement', 'value_moy_c',
+                         'age', 'sante', 'soin', 'quantite_var_par_age']],
                     ci="sd", ax=ax)
     f.savefig('img/arbre_norm_surv_par_age_' + str(q_h) + '_' + str(q_b) + '.png')
     plt.clf()
     plt.close('all')
 
-    # for age in list(actions.unique()):
     sns.set_theme(style="whitegrid")
-
-    # df_age_quant_sante = actions[['avg_h','sante', 'avg_c', 'quantite_var_par_age']].loc[actions['age'] == 'A']# age instead of 'J'
 
     f, ax = plt.subplots(figsize=(12.5, 15.5))
     sns.despine(f, left=True, bottom=True)
@@ -273,8 +315,7 @@ def graphiques(q_h, q_b):
     plt.close('all')
     actions.to_excel('data/actions_' + str(q_h) + '_' + str(q_b) + '.xlsx')
 
-    ### Analyse des arbres les plus fréquents par arrondissement
-
+    # Analyse des arbres les plus fréquents par arrondissement
     freq_libel_arr = actions[['arrondissement', 'libelle_francais', 'nb_arbre_meme_libel_arr']].copy()
 
     freq_libel_arr = freq_libel_arr[~freq_libel_arr.duplicated()].sort_values(by='arrondissement')
@@ -306,8 +347,7 @@ def graphiques(q_h, q_b):
     f.savefig('img/part_des_5_libels_freq_par_arrondissement_' + str(q_h) + '_' + str(q_b) + '.png')
     plt.close('all')
 
-    ### Analyse des emplacements des arbres remarquables
-
+    # Analyse des emplacements des arbres remarquables
     remarkable = actions.loc[actions.remarquable == 1].copy()
 
     dom_rem_df = pd.DataFrame(columns=['dom', 'count'])
@@ -342,8 +382,7 @@ def graphiques(q_h, q_b):
     f.savefig('img/remarquable_par_arrondissement_' + str(q_h) + '_' + str(q_b) + '.png')
     plt.close('all')
 
-    ### Analyse du nombre d'arbre par arrondissement et par stade de développement.
-
+    # Analyse du nombre d'arbre par arrondissement et par stade de développement.
     qa9 = """SELECT actions.arrondissement as arr, 
                             actions.age,
                             COUNT(*) as total
@@ -365,21 +404,22 @@ def graphiques(q_h, q_b):
                             actions_hist_stadev.age,
                             actions_hist_stadev.total,
                             actions_hist_stadev_soin.surveiller 
-                            FROM actions_hist_stadev JOIN actions_hist_stadev_soin ON actions_hist_stadev.arr = actions_hist_stadev_soin.arr AND
-                            actions_hist_stadev.age = actions_hist_stadev_soin.age
+                            FROM actions_hist_stadev JOIN actions_hist_stadev_soin 
+                            ON actions_hist_stadev.arr = actions_hist_stadev_soin.arr 
+                            AND actions_hist_stadev.age = actions_hist_stadev_soin.age
     
     
             """
 
     actions_hist_stadev_merge = ps.sqldf(qa11, locals())
-
+    actions_hist_stadev_merge.to_excel('data/quant_surveiller_arr_age_q_h_' + str(q_h) + '_' + str(q_b) + '.xlsx')
     data_hist_stadev_chart = actions_hist_stadev_merge.copy()
 
     sns.set_theme(style="whitegrid")
 
     # Initialize the matplotlib figure
     f, ax = plt.subplots(figsize=(18, 15))
-
+    plt.title('Arbres par Arrondissement,\npar Stade de développement', fontdict={'fontsize': 30, 'fontweight': 'bold'})
     # Load the example car crash dataset
     crashes = data_hist_stadev_chart
     # Plot the total crashes
@@ -392,16 +432,21 @@ def graphiques(q_h, q_b):
     ax.set(xlim=(0, 6000), ylabel="",
            xlabel="Les arbres par arrondissement, par âge")
 
-    sns_plot = sns.despine(left=True, bottom=True)
+    sns.despine(left=True, bottom=True)
     f.savefig('img/nombre_arbre_par_arrondissement_par_stade_de_dev_q_h_' + str(q_h) + '_' + str(q_b) + '.png')
     plt.clf()
     plt.close('all')
 
     f = plt.figure(figsize=(20, 20))
-    ax = sns.violinplot(order=['J', 'P', 'JA', 'A', 'M'], x="age", hue="remarquable", y="quantite_var_par_age",
-                        data=actions, inner=None, scale='width')
+    plt.title('Répartition des arbres\nremarquable et non-remarquable', fontdict={'fontsize': 40, 'fontweight': 'bold'})
+    ax = sns.violinplot(order=['J', 'P', 'JA', 'A', 'M'], x="Stade de Développement", hue="Remarquable", y="Quantité d'arbres par variété",
+                        data=actions.rename(columns={'quantite_var_par_age': "Quantité d'arbres par variété",
+                                                     'age': 'Stade de Développement', 'remarquable': 'Remarquable'}),
+                        inner=None, scale='width')
     f.savefig('img/repartition_des_varietes_par_age_par_remarquable_' + str(q_h) + '_' + str(q_b) + '.png')
     plt.close('all')
+
+    # Écriture du nombre d'arbre par lieu
     q12 = """SELECT actions.lieu as lieu, 
                             actions.arrondissement,
                             COUNT(*) as total
@@ -421,7 +466,8 @@ def graphiques(q_h, q_b):
                             actions_hist_lieu.arrondissement,
                             actions_hist_lieu.total,
                             actions_hist_lieu_soin.surveiller 
-                            FROM actions_hist_lieu JOIN actions_hist_lieu_soin ON actions_hist_lieu.lieu = actions_hist_lieu_soin.lieu
+                            FROM actions_hist_lieu JOIN actions_hist_lieu_soin 
+                            ON actions_hist_lieu.lieu = actions_hist_lieu_soin.lieu
     
     
             """
@@ -434,25 +480,62 @@ def graphiques(q_h, q_b):
     plt.ylabel('arbres à surveiller')
     plt.savefig('img/plot_surveiller_lieu_q_h_' + str(q_h) + '_' + str(q_b) + '.png')
     plt.close('all')
-    chemin_note = pd.read_pickle('chemin.dat_' + str(q_h) + '_' + str(q_b))
+
+    # Consignation des chemins pour chaque arrondissement dans un tableur
+    chemin_note = pd.read_pickle('data/chemin_' + str(q_h) + '_' + str(q_b) + '.dat')
     road_dict_df = dict()
     for arr in arr_list:
         road_dict_df.update({arr: chemin_note['road'][arr]})
     road_df = pd.DataFrame.from_dict(road_dict_df, orient='index')
     road_df.transpose().to_excel('data/chemin_par_arrondissement_' + str(q_h) + '_' + str(q_b) + '.xlsx')
 
+    # Graphiques
     f = plt.figure(figsize=(20, 20))
+    plt.title('Répartition des hauteurs', fontdict={'fontsize': 40, 'fontweight': 'bold'})
+    plt.xlabel('Stade de développement')
+    plt.ylabel('Hauteurs')
     ax = sns.violinplot(order=['J', 'P', 'JA', 'A', 'M'], x="age", y="hauteur_m", data=actions, inner=None,
                         scale='width')
     f.savefig('img/repartition_des_hauteur_par_age_' + str(q_h) + '_' + str(q_b) + '.png')
     plt.close('all')
+
     f = plt.figure(figsize=(20, 20))
+    plt.title('Répartition des circonférences', fontdict={'fontsize': 40, 'fontweight': 'bold'})
+    plt.xlabel('Stade de développement')
+    plt.ylabel('Circonférences')
     ax = sns.violinplot(order=['J', 'P', 'JA', 'A', 'M'], x="age", y="circonference_cm", data=actions, inner=None,
                         scale='width')
     f.savefig('img/repartition_des_circonference_par_age_' + str(q_h) + '_' + str(q_b) + '.png')
     plt.close('all')
 
+    data_filtre = pd.read_excel('data/data_filtre.xlsx')
+    f = plt.figure(figsize=(20, 10))
+    plt.title('Densité des Hauteurs par domanialité', fontdict={'fontsize': 20, 'fontweight': 'bold'})
+    ax = sns.violinplot(x="Domanialité", y="Hauteurs en mètre",
+                        data=data_filtre
+                        .rename(columns={'hauteur_m': 'Hauteurs en mètre',
+                                         'domanialite': 'Domanialité'}), inner=None, scale='width')
+    f.savefig('img/hauteurs_par_domanialite_' + str(q_h) + '_' + str(q_b) + '.png')
+    plt.close('all')
+
+    f = plt.figure(figsize=(20, 10))
+    plt.title('Densité des Circonférences par domanialité', fontdict={'fontsize': 20, 'fontweight': 'bold'})
+    ax = sns.violinplot(x="Domanialités", y="Circonférence en cm", data=data_filtre
+                        .rename(columns={'circonference_cm': 'Circonférence en cm',
+                                         'domanialite': 'Domanialités'}), inner=None, scale='width')
+    f.savefig('img/circonferences_par_domanialite_' + str(q_h) + '_' + str(q_b) + '.png')
+    plt.close('all')
+
+    f = plt.figure(figsize=(20, 10))
+    plt.title('Densité par Stade de développement,\npar domanialité', fontdict={'fontsize': 20, 'fontweight': 'bold'})
+    ax = sns.violinplot(x="Domanialités", y="Stades Ordonnés de Développement", data=data_filtre
+                        .rename(columns={'sta_dev_num': 'Stades Ordonnés de Développement',
+                                         'domanialite': 'Domanialités'}), inner=None, scale='width')
+    f.savefig('img/stad_devel_par_domanialite_' + str(q_h) + '_' + str(q_b) + '.png')
+    plt.close('all')
+
     return
+
 
 def data_compute(q_h, q_b):
     """
@@ -465,51 +548,61 @@ def data_compute(q_h, q_b):
 
     # Création de l'Analyse Univariée
 
-    mean = pd.DataFrame()
-    std = pd.DataFrame()
+    mean = pd.DataFrame({"hauteur_m": pd.Series([], dtype='float'), "circonference_cm": pd.Series([], dtype='float')})
+    std = pd.DataFrame({"hauteur_m": pd.Series([], dtype='float'), "circonference_cm": pd.Series([], dtype='float')})
     data_filtre_moy_qut = pd.DataFrame({"quantite_var_par_age": pd.Series([], dtype='int'),
-         "age": pd.Series([], dtype= 'str'),
-         "avg_c": pd.Series([], dtype= "float"),
-         "avg_h": pd.Series([], dtype= "float"),
-         "libelle_francais": pd.Series([], dtype='str'),
-        "qut_c_b": pd.Series([], dtype="float"),
-        "qut_c_h": pd.Series([], dtype="float"),
-        "qut_h_b": pd.Series([], dtype="float"),
-        "qut_h_h": pd.Series([], dtype="float"),
-        "std_c": pd.Series([], dtype="float"),
-        "std_h": pd.Series([], dtype="float")})
+                                        "age": pd.Series([], dtype='str'),
+                                        "avg_c": pd.Series([], dtype="float"),
+                                        "avg_h": pd.Series([], dtype="float"),
+                                        "libelle_francais": pd.Series([], dtype='str'),
+                                        "qut_c_b": pd.Series([], dtype="float"),
+                                        "qut_c_h": pd.Series([], dtype="float"),
+                                        "qut_h_b": pd.Series([], dtype="float"),
+                                        "qut_h_h": pd.Series([], dtype="float"),
+                                        "std_c": pd.Series([], dtype="float"),
+                                        "std_h": pd.Series([], dtype="float")})
 
-    for arr in list(data_filtre['libelle_francais'].unique()):
+    for libelle in list(data_filtre['libelle_francais'].unique()):
         for age in list(data_filtre['stade_developpement'].unique()):
+            slope, intercept, r, p, se = linregress(data_filtre['circonference_cm']
+                                                    .loc[data_filtre['libelle_francais'] == libelle],
+                                                    data_filtre['hauteur_m']
+                                                    .loc[data_filtre['libelle_francais'] == libelle])
             mean = data_filtre.loc[
-                (data_filtre['libelle_francais'] == arr) & (data_filtre['stade_developpement'] == age)].mean()
+                (data_filtre['libelle_francais'] == libelle) & (data_filtre['stade_developpement'] == age)].mean()
             std = data_filtre.loc[
-                (data_filtre['libelle_francais'] == arr) & (data_filtre['stade_developpement'] == age)].std()
+                (data_filtre['libelle_francais'] == libelle) & (data_filtre['stade_developpement'] == age)].std()
             qut_h = data_filtre.loc[
-                (data_filtre['libelle_francais'] == arr) & (data_filtre['stade_developpement'] == age)].quantile(q=q_h)
+                (data_filtre['libelle_francais'] == libelle) & (data_filtre['stade_developpement'] == age)].quantile(q=q_h)
             qut_b = data_filtre.loc[
-                (data_filtre['libelle_francais'] == arr) & (data_filtre['stade_developpement'] == age)].quantile(q=q_b)
-            data_filtre_moy_qut = data_filtre_moy_qut.append({'libelle_francais': arr, 'age': age, 'quantite_var_par_age':
-                int(data_filtre['type_emplacement'].loc[(data_filtre['libelle_francais'] == arr) &
-                                                        (data_filtre['stade_developpement'] == age)].count()),
-
-                                                              'avg_h': float(mean['hauteur_m']), 'std_h': std['hauteur_m'],
-                                                              'qut_h_h': qut_h['hauteur_m'], 'qut_h_b': qut_b['hauteur_m'],
+                (data_filtre['libelle_francais'] == libelle) & (data_filtre['stade_developpement'] == age)].quantile(q=q_b)
+            data_filtre_moy_qut = data_filtre_moy_qut.append({'libelle_francais': libelle, 'age': age,
+                                                              'quantite_var_par_age': int(
+                                                                  data_filtre['type_emplacement']
+                                                                      .loc[(data_filtre['libelle_francais'] == libelle)
+                                                                           & (data_filtre['stade_developpement'] == age)]
+                                                                      .count()),
+                                                              'slope': slope,
+                                                              'avg_h': float(mean['hauteur_m']),
+                                                              'std_h': std['hauteur_m'],
+                                                              'qut_h_h': qut_h['hauteur_m'],
+                                                              'qut_h_b': qut_b['hauteur_m'],
                                                               'avg_c': float(mean['circonference_cm']),
                                                               'std_c': std['circonference_cm'],
                                                               'qut_c_h': qut_h['circonference_cm'],
                                                               'qut_c_b': qut_b['circonference_cm']},
                                                              ignore_index=True)
     data_filtre_moy_qut[
-        ['libelle_francais', 'age', 'quantite_var_par_age', 'avg_h', 'std_h', 'qut_h_h', 'qut_h_b', 'avg_c', 'std_c', 'qut_c_h',
+        ['libelle_francais', 'age', 'quantite_var_par_age', 'avg_h', 'std_h', 'qut_h_h',
+         'qut_h_b', 'avg_c', 'std_c', 'qut_c_h',
          'qut_c_b']].sort_values(by=['libelle_francais', 'age']).reset_index()
 
-    print(data_filtre_moy_qut.info())
     data_filtre_moy_qut.to_excel('data/data_filtre_moy_qut_' + str(q_h) + '_' + str(q_b) + '.xlsx')
     # Création de l'action
     q8 = """SELECT  data_filtre_moy_qut.libelle_francais,
                     data_filtre_moy_qut.age,
                     data_filtre_moy_qut.quantite_var_par_age,
+                    data_filtre_moy_qut.slope,
                     data_filtre_moy_qut.avg_h,
                     data_filtre_moy_qut.qut_h_h,
                     data_filtre_moy_qut.qut_h_b,
@@ -541,51 +634,86 @@ def data_compute(q_h, q_b):
 
     actions = ps.sqldf(q8, locals())
 
-    ## Dépose d'un marqueur de soin pour l'actions et la santé au-dessus ou au-dessus de la normale
+    # Dépose d'un marqueur de soin pour l'actions et la santé au-dessus ou au-dessus de la normale
     actions['sante'] = ''
     actions['soin'] = ''
 
     load = actions.copy()
     for lib in list(load.libelle_francais.unique()):
-        load.loc[actions['libelle_francais'] == lib, 'nb_arbre_meme_libel'] = load.libelle_francais.loc[actions['libelle_francais'] == lib].count()
+        load.loc[actions['libelle_francais'] == lib,
+                 'nb_arbre_meme_libel'] = load.libelle_francais.loc[actions['libelle_francais'] == lib].count()
+
     for arr in list(load.arrondissement.unique()):
-        load.loc[actions['arrondissement'] == arr, 'nb_arbre_meme_arr'] = load.arrondissement.loc[actions['arrondissement'] == arr].count()
+        load.loc[actions['arrondissement'] == arr,
+                 'nb_arbre_meme_arr'] = load.arrondissement.loc[actions['arrondissement'] == arr].count()
+
     for arr in list(load.arrondissement.unique()):
         for soin in ['à surveiller']:
-            load.loc[actions['arrondissement'] == arr, 'nb_surv_arr'] = load.arrondissement.loc[(actions['arrondissement'] == arr) & (actions['soin'] == soin)].count()
+            load.loc[actions['arrondissement'] == arr,
+                     'nb_surv_arr'] = load.arrondissement.loc[(actions['arrondissement'] == arr)
+                                                              & (actions['soin'] == soin)].count()
+
     for lieu in list(load.lieu.unique()):
         for soin in ['à surveiller']:
-            load.loc[actions['lieu'] == lieu, 'nb_surv_lieu'] = load.lieu.loc[(actions['lieu'] == lieu) & (actions['soin'] == soin)].count()
+            load.loc[actions['lieu'] == lieu,
+                     'nb_surv_lieu'] = load.lieu.loc[(actions['lieu'] == lieu) & (actions['soin'] == soin)].count()
 
-    load.loc[(load['hauteur_m'] <= load['qut_h_b'])|(load['circonference_cm'] <= load['qut_c_b']), 'sante'] = 'au-dessous'
-    load.loc[(load['hauteur_m'] <= load['qut_h_b'])|(load['circonference_cm'] <= load['qut_c_b']), 'soin'] = 'à surveiller'
-    load.loc[(load['hauteur_m'] <= load['qut_h_b'])|(load['circonference_cm'] <= load['qut_c_b']), 'value_moy_c'] = load['qut_c_b'].loc[(load['hauteur_m'] <= load['qut_h_b'])&(load['circonference_cm'] <= load['qut_c_b'])]
-    load.loc[(load['hauteur_m'] <= load['qut_h_b'])|(load['circonference_cm'] <= load['qut_c_b']), 'value_moy_h'] = load['qut_h_b'].loc[(load['hauteur_m'] <= load['qut_h_b'])&(load['circonference_cm'] <= load['qut_c_b'])]
+    load['ratio_h_c'] = load['hauteur_m'].div(load['circonference_cm'])
+    load.loc[(load['ratio_h_c'] <= load['ratio_h_c'].quantile(q=0.25)), 'correlation'] = 'bas_ratio'
+    load.loc[(load['ratio_h_c'] >= load['ratio_h_c'].quantile(q=0.75)), 'correlation'] = 'haut_ratio'
+    load.loc[(load['hauteur_m'] <= load['qut_h_b'])
+             | (load['circonference_cm'] <= load['qut_c_b']), 'sante'] = 'au-dessous'
+    load.loc[(load['hauteur_m'] <= load['qut_h_b'])
+             | (load['circonference_cm'] <= load['qut_c_b']), 'soin'] = 'à surveiller'
+    load.loc[(load['hauteur_m'] <= load['qut_h_b'])
+             | (load['circonference_cm'] <= load['qut_c_b']), 'value_moy_c'] = load['qut_c_b'].loc[(load['hauteur_m'] <= load['qut_h_b'])&(load['circonference_cm'] <= load['qut_c_b'])]
+    load.loc[(load['hauteur_m'] <= load['qut_h_b'])
+             | (load['circonference_cm'] <= load['qut_c_b']), 'value_moy_h'] = load['qut_h_b'].loc[(load['hauteur_m'] <= load['qut_h_b'])&(load['circonference_cm'] <= load['qut_c_b'])]
 
-    load.loc[(load['hauteur_m'] >= load['qut_h_h'])|(load['circonference_cm'] >= load['qut_c_h']), 'sante'] = 'au-dessus'
-    load.loc[(load['hauteur_m'] >= load['qut_h_h'])|(load['circonference_cm'] >= load['qut_c_h']), 'soin'] = 'à surveiller'
-    load.loc[(load['hauteur_m'] >= load['qut_h_h'])|(load['circonference_cm'] >= load['qut_c_h']), 'value_moy_c'] = load['qut_c_h'].loc[(load['hauteur_m'] >= load['qut_h_h'])&(load['circonference_cm'] >= load['qut_c_h'])]
-    load.loc[(load['hauteur_m'] >= load['qut_h_h'])|(load['circonference_cm'] >= load['qut_c_h']), 'value_moy_h'] = load['qut_h_h'].loc[(load['hauteur_m'] >= load['qut_h_h'])&(load['circonference_cm'] >= load['qut_c_h'])]
+    load.loc[(load['hauteur_m'] >= load['qut_h_h'])
+             | (load['circonference_cm'] >= load['qut_c_h']), 'sante'] = 'au-dessus'
+    load.loc[(load['hauteur_m'] >= load['qut_h_h'])
+             | (load['circonference_cm'] >= load['qut_c_h']), 'soin'] = 'à surveiller'
+    load.loc[(load['hauteur_m'] >= load['qut_h_h'])
+             | (load['circonference_cm'] >= load['qut_c_h']), 'value_moy_c'] = load['qut_c_h'].loc[(load['hauteur_m'] >= load['qut_h_h'])&(load['circonference_cm'] >= load['qut_c_h'])]
+    load.loc[(load['hauteur_m'] >= load['qut_h_h'])
+             | (load['circonference_cm'] >= load['qut_c_h']), 'value_moy_h'] = load['qut_h_h'].loc[(load['hauteur_m'] >= load['qut_h_h'])&(load['circonference_cm'] >= load['qut_c_h'])]
 
-    load.loc[((load['hauteur_m'] < load['qut_h_h'])&(load['circonference_cm'] < load['qut_c_h']))
-             &((load['hauteur_m'] > load['qut_h_b'])&(load['circonference_cm'] > load['qut_c_b'])), 'sante'] = 'normal'
-    load.loc[((load['hauteur_m'] < load['qut_h_h'])&(load['circonference_cm'] < load['qut_c_h']))
-             &((load['hauteur_m'] > load['qut_h_b'])&(load['circonference_cm'] > load['qut_c_b'])), 'soin'] = 'normal'
-    load.loc[((load['hauteur_m'] < load['qut_h_h'])&(load['circonference_cm'] < load['qut_c_h']))
-             &((load['hauteur_m'] > load['qut_h_b'])&(load['circonference_cm'] > load['qut_c_b'])), 'value_moy_c'] = load['avg_c'].loc[((load['hauteur_m'] < load['qut_h_h'])|(load['circonference_cm'] < load['qut_c_h']))]
-    load.loc[((load['hauteur_m'] < load['qut_h_h'])&(load['circonference_cm'] < load['qut_c_h']))
-             &((load['hauteur_m'] > load['qut_h_b'])&(load['circonference_cm'] > load['qut_c_b'])), 'value_moy_h'] = load['avg_h'].loc[((load['hauteur_m'] < load['qut_h_h'])|(load['circonference_cm'] < load['qut_c_h']))]
+    load.loc[((load['hauteur_m'] < load['qut_h_h'])
+              & (load['circonference_cm'] < load['qut_c_h']))
+             & ((load['hauteur_m'] > load['qut_h_b'])
+                & (load['circonference_cm'] > load['qut_c_b'])), 'sante'] = 'normal'
+    load.loc[((load['hauteur_m'] < load['qut_h_h'])
+              & (load['circonference_cm'] < load['qut_c_h']))
+             & ((load['hauteur_m'] > load['qut_h_b'])
+                & (load['circonference_cm'] > load['qut_c_b'])), 'soin'] = 'normal'
+    load.loc[((load['hauteur_m'] < load['qut_h_h'])
+              & (load['circonference_cm'] < load['qut_c_h']))
+             & ((load['hauteur_m'] > load['qut_h_b'])
+                & (load['circonference_cm'] > load['qut_c_b'])), 'value_moy_c'] \
+        = load['avg_c'].loc[((load['hauteur_m'] < load['qut_h_h'])|(load['circonference_cm'] < load['qut_c_h']))]
+    load.loc[((load['hauteur_m'] < load['qut_h_h'])
+              & (load['circonference_cm'] < load['qut_c_h']))
+             & ((load['hauteur_m'] > load['qut_h_b'])
+                & (load['circonference_cm'] > load['qut_c_b'])), 'value_moy_h'] \
+        = load['avg_h'].loc[((load['hauteur_m'] < load['qut_h_h'])|(load['circonference_cm'] < load['qut_c_h']))]
 
     # Ajout des nombres d'arbres par libelle_francais, arrondissement, et les deux en même temps
+
     for lib in list(load.libelle_francais.unique()):
-        load.loc[actions['libelle_francais'] == lib, 'nb_arbre_meme_libel'] = load.libelle_francais.loc[actions['libelle_francais'] == lib].count()
+        load.loc[actions['libelle_francais'] == lib, 'nb_arbre_meme_libel'] \
+            = load.libelle_francais.loc[actions['libelle_francais'] == lib].count()
+
     for arr in list(load.arrondissement.unique()):
         load.loc[actions['arrondissement'] == arr, 'nb_arbre_meme_arr'] = load.arrondissement.loc[
             actions['arrondissement'] == arr].count()
+
     for lib in list(load.libelle_francais.unique()):
         for arr in list(load.arrondissement.unique()):
-            load.loc[(actions['arrondissement'] == arr) & (actions['libelle_francais'] == lib), 'nb_arbre_meme_libel_arr'] = \
-            load.arrondissement.loc[(actions['arrondissement'] == arr) & (actions['libelle_francais'] == lib)].count()
+            load.loc[(actions['arrondissement'] == arr) & (actions['libelle_francais'] == lib),
+                     'nb_arbre_meme_libel_arr'] = \
+            load.arrondissement.loc[(actions['arrondissement'] == arr)
+                                    & (actions['libelle_francais'] == lib)].count()
 
     # Fin de création de action
     actions = load.copy()
@@ -597,24 +725,27 @@ def data_compute(q_h, q_b):
     action_df_simple = actions_simple[['type_emplacement', 'domanialite', 'arrondissement',
                                        'complement_addresse', 'lieu', 'id_emplacement', 'libelle_francais',
                                        'genre', 'espece', 'variete', 'circonference_cm', 'hauteur_m',
-                                       'stade_developpement', 'remarquable', 'geo_point_2d_a',
-                                       'geo_point_2d_b', 'soin']].copy()
-    data_new = data.loc[((data["hauteur_m"] >= 21) | (data["hauteur_m"] <= 0)) \
+                                       'stade_developpement', 'remarquable', 'slope', 'sante', 'geo_point_2d_a',
+                                       'geo_point_2d_b', 'soin', 'correlation']].copy()
+    action_df_simple['ratio'] = (action_df_simple['hauteur_m'].div(action_df_simple['circonference_cm'])).div(action_df_simple['slope'])
+    data_new = data.loc[((data["hauteur_m"] >= 21) | (data["hauteur_m"] <= 0))
                         | ((data["circonference_cm"] >= 255) | (data["circonference_cm"] <= 0))].copy()
     data_new['soin'] = 'à vérifier'
+    data_new['sante'] = 'à vérifier'
     data_end = action_df_simple.append(data_new).copy()
     data_end.to_excel('data/new_data_end_' + str(q_h) + '_' + str(q_b) + '.xlsx')
 
+
 def main():
 
-    for x, y in [[0.95, 0.05],[0.8, 0.2],[0.85,0.15],[0.90,0.10],[0.98,0.02],[0.99,0.01]]:
-        data_compute(x, y)
-        graphiques(x, y)
-        carte_positions(x, y)
+    for x, y in [[0.95, 0.05]]:#, [0.8, 0.2], [0.85, 0.15], [0.90, 0.10], [0.98, 0.02], [0.99, 0.01]]:
+        carte_danger(x,y)
+        #data_compute(x, y)
+        #graphiques(x, y)
+        # carte_positions(x, y)
+
 
 if __name__ == '__main__':
     main()
-    #carte_positions(0.95, 0.05)
-    #pics(0.95, 0.05)
-
-
+    # carte_positions(0.95, 0.05)
+    # pics(0.95, 0.05)
