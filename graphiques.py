@@ -126,16 +126,51 @@ def carte_danger(q_h, q_b):
             location=[valeur_danger('geo_point_2d_a', i, data_map),
                       valeur_danger('geo_point_2d_b', i, data_map)],
 
-            popup=str(valeur_danger('genre', i,  data_map)) + ', '
-            + str(valeur_danger('espece', i,  data_map)) + ', '
-            + str(valeur_danger('variete', i,  data_map)) + ', '
+            popup=str(valeur_danger('genre', i,  data_map)) + ', \n'
+            + str(valeur_danger('espece', i,  data_map)) + ', \n'
+            + str(valeur_danger('variete', i,  data_map)) + ', \n'
             + str(valeur_danger('libelle_francais', i,  data_map))
-            + ', haut. : ' + str(float(valeur_danger('hauteur_m', i,  data_map))) +
-            'm, circ. : ' + str(float(valeur_danger('circonference_cm', i,  data_map))) + 'cm, action à prendre : '
-            + valeur_danger('soin', i, data_map),
+            + ', haut. :\n' + str(float(valeur_danger('hauteur_m', i,  data_map))) +
+            'm, circ. : \n' + str(float(valeur_danger('circonference_cm', i,  data_map))) + '\n arbre en danger',
             icon=folium.Icon(icon='heart', color='red'),
         ).add_to(m)
     m.save("data/map/index" + '_' + 'danger' + ".html")
+
+    del m
+    return
+
+def carte_remarkability(q_h, q_b):
+    global data_mapping
+    """
+    Permet de créer des cartes avec la bibliothèque folium.
+    :param q_h: quantile passe-haut
+    :param q_b: quantile passe-bas
+    :return: void
+    """
+    data = pd.read_excel('data/new_data_end_' + str(q_h) + '_' + str(q_b) + '.xlsx')
+    data_mapping = data.loc[data['remarquable'] == 1].copy()
+    poi_list = ['orange']
+    poi_icon_list = ['heart']
+
+    # Boucle de fabrication des cartes par Arrondissement
+    m = folium.Map(location=[48.857722, 2.321031], zoom_start=12, tiles="Stamen Terrain")
+    data_map = data_mapping.copy()#.loc[data_mapping['arrondissement'] == arr]
+    print('carte de remarkability')
+    for i in range(len(data_map['geo_point_2d_a'])):
+        # print(len(data_map['geo_point_2d_a'].loc[data_map['arrondissement']==arr]))
+        folium.Marker(
+            location=[valeur_danger('geo_point_2d_a', i, data_map),
+                      valeur_danger('geo_point_2d_b', i, data_map)],
+
+            popup=str(valeur_danger('genre', i,  data_map)) + ', \n'
+            + str(valeur_danger('espece', i,  data_map)) + ', \n'
+            + str(valeur_danger('variete', i,  data_map)) + ', \n'
+            + str(valeur_danger('libelle_francais', i,  data_map))
+            + ', haut. : \n' + str(float(valeur_danger('hauteur_m', i,  data_map))) +
+            'm, circ. : \n' + str(float(valeur_danger('circonference_cm', i,  data_map))) + '\narbre remarquable',
+            icon=folium.Icon(icon='star', color='orange'),
+        ).add_to(m)
+    m.save("data/map/index" + '_' + 'remarkability' + ".html")
 
     del m
     return
@@ -150,6 +185,7 @@ def graphiques(q_h, q_b):
     """
 
     # Creation du nombre d'arbre par arrondissement
+    new_data = pd.read_excel('data/new_data_end_' + str(q_h) + '_' + str(q_b) + '.xlsx')
     actions = pd.read_excel('data/new_data_end_' + str(q_h) + '_' + str(q_b) + '.xlsx')
     q9 = """SELECT actions.arrondissement as arr, 
                         COUNT(*) as total
@@ -313,7 +349,7 @@ def graphiques(q_h, q_b):
     f.savefig('img/data_arbre_a_surveiller_par_arrondissement_q_h_' + str(q_h) + '_' + str(q_b) + '.png')
     plt.clf()
     plt.close('all')
-    actions.to_excel('data/actions_' + str(q_h) + '_' + str(q_b) + '.xlsx')
+#actions.to_excel('data/actions_' + str(q_h) + '_' + str(q_b) + '.xlsx')
 
     # Analyse des arbres les plus fréquents par arrondissement
     freq_libel_arr = actions[['arrondissement', 'libelle_francais', 'nb_arbre_meme_libel_arr']].copy()
@@ -381,6 +417,41 @@ def graphiques(q_h, q_b):
     plt.xlabel('nb arbres remarquables')
     f.savefig('img/remarquable_par_arrondissement_' + str(q_h) + '_' + str(q_b) + '.png')
     plt.close('all')
+
+    # Création de l'analyse des tailles par arrondissement
+    analyse_ratio_arr = pd.DataFrame({'arrondissement': pd.Series([], dtype='str'),
+                                      'ratio_global': pd.Series([], dtype='float64')})
+    for arr in actions['arrondissement'].unique():
+        analyse_ratio_arr = analyse_ratio_arr.append({'arrondissement': arr,
+                                                      'ratio_global': new_data['ratio']
+                                                     .loc[(new_data['arrondissement'] == arr)
+                                                          & ((new_data["hauteur_m"] < 21)
+                                                          & (new_data["hauteur_m"] > 0))
+                                                          & ((new_data["circonference_cm"] < 255)
+                                                          & (new_data["circonference_cm"] > 0))
+                                                          & (new_data['ratio'] < 10000)].mean()},
+                                                     ignore_index=True)
+    f, ax = plt.subplots(figsize=(18, 15))
+    sns.barplot(data=arr_rem_df, order=arr_list, y="arr", x="count", orient='h')  # , multiple="stack")
+    plt.title('La répartition des arbres remarquables par arrondissement',
+              fontdict={'fontsize': 30, 'fontweight': 'bold'})
+    plt.ylabel('Arrondissemeent')
+    plt.xlabel('Proportion de hauteur/circonférence d\'arbre')
+    f.savefig('img/taille_par_arrondissement_' + str(q_h) + '_' + str(q_b) + '.png')
+    plt.close('all')
+
+    # Analyse des arbres les plus fréquents par arrondissement.
+    analyse_freq_arr = pd.DataFrame({'arrondissement': pd.Series([], dtype='str'),
+                                     'arbre_frequent': pd.Series([], dtype='str')})
+    for arr in actions['arrondissement'].unique():
+        analyse_freq_arr = analyse_freq_arr.append({'arrondissement':
+                                                        arr,
+                                                    'arbre_frequent':
+                                                        actions['libelle_francais']
+                                                   .loc[(actions[
+                                                             'arrondissement'] == arr)].value_counts().index[0]},
+                                                   ignore_index=True)
+    analyse_freq_arr.to_excel('data/data_freq_arr.xlsx')
 
     # Analyse du nombre d'arbre par arrondissement et par stade de développement.
     qa9 = """SELECT actions.arrondissement as arr, 
@@ -482,12 +553,18 @@ def graphiques(q_h, q_b):
     plt.close('all')
 
     # Consignation des chemins pour chaque arrondissement dans un tableur
-    chemin_note = pd.read_pickle('data/chemin_' + str(q_h) + '_' + str(q_b) + '.dat')
-    road_dict_df = dict()
-    for arr in arr_list:
-        road_dict_df.update({arr: chemin_note['road'][arr]})
-    road_df = pd.DataFrame.from_dict(road_dict_df, orient='index')
-    road_df.transpose().to_excel('data/chemin_par_arrondissement_' + str(q_h) + '_' + str(q_b) + '.xlsx')
+    for col in ['soin', 'ratio', 'remarquable']:
+        chemin_note = pd.read_pickle('data/chemin_' + col + '_' + str(q_h) + '_' + str(q_b) + '.dat')
+        road_dict_df = dict()
+        for arr in arr_list:
+            try:
+                road_dict_df.update({arr: chemin_note['road'][arr]})
+            except KeyError as e:
+                print(e)
+                pass
+        road_df = pd.DataFrame.from_dict(road_dict_df, orient='index')
+        road_df.transpose().to_excel(
+            'data/chemin_par_' + col + '_arrondissement_' + str(q_h) + '_' + str(q_b) + '.xlsx')
 
     # Graphiques
     f = plt.figure(figsize=(20, 20))
@@ -718,7 +795,9 @@ def data_compute(q_h, q_b):
     # Fin de création de action
     actions = load.copy()
     actions.to_excel('data/actions_' + str(q_h) + '_' + str(q_b) + '.xlsx')
-    christofides.christofides(q_h, q_b)
+    christofides.christofides(q_h, q_b, 'soin')
+    christofides.christofides(q_h, q_b, 'ratio')
+    christofides.christofides(q_h, q_b, 'remarquable')
 
     actions_simple = pd.read_excel('data/actions_' + str(q_h) + '_' + str(q_b) + '.xlsx')
     actions_simple = actions_simple.rename(columns={'lat': 'geo_point_2d_a', 'lon': 'geo_point_2d_b'})
@@ -739,11 +818,12 @@ def data_compute(q_h, q_b):
 def main():
 
     for x, y in [[0.95, 0.05]]:#, [0.8, 0.2], [0.85, 0.15], [0.90, 0.10], [0.98, 0.02], [0.99, 0.01]]:
-        carte_danger(x,y)
-        #data_compute(x, y)
-        #graphiques(x, y)
-        # carte_positions(x, y)
 
+        data_compute(x, y)
+        graphiques(x, y)
+        carte_danger(x,y)
+        carte_remarkability(x,y)
+        # carte_positions(x, y)
 
 if __name__ == '__main__':
     main()
