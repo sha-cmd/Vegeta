@@ -19,6 +19,32 @@ import pycuda.autoinit
 
 PICKLE_FILE_1 = 'data.dat'
 PICKLE_FILE_2 = 'chemin.dat'
+arr_list = [
+        'PARIS 1ER ARRDT',
+        'PARIS 2E ARRDT',
+        'PARIS 3E ARRDT',
+        'PARIS 4E ARRDT',
+        'PARIS 5E ARRDT',
+        'PARIS 6E ARRDT',
+        'PARIS 7E ARRDT',
+        'PARIS 8E ARRDT',
+        'PARIS 9E ARRDT',
+        'PARIS 10E ARRDT',
+        'PARIS 11E ARRDT',
+        'PARIS 12E ARRDT',
+        'PARIS 13E ARRDT',
+        'PARIS 14E ARRDT',
+        'PARIS 15E ARRDT',
+        'PARIS 16E ARRDT',
+        'PARIS 17E ARRDT',
+        'PARIS 18E ARRDT',
+        'PARIS 19E ARRDT',
+        'PARIS 20E ARRDT',
+        'BOIS DE BOULOGNE',
+        'BOIS DE VINCENNES',
+        'HAUTS-DE-SEINE',
+        'SEINE-SAINT-DENIS',
+        'VAL-DE-MARNE']
 
 
 
@@ -277,13 +303,23 @@ class Graph:
             len(pd.DataFrame(self.road, columns=['lieu'])['lieu'].unique()) == len(self.road)) + ', nombre de lieux totaux : ' + str(len(self.road))
 
 
-def christofides(q_h=0.95, q_b=0.05):
+def christofides(q_h=0.95, q_b=0.05, col='soin'):#, motif='à surveiller'):
     #data_orig = pd.read_csv('data.csv', sep=';')
     data_surv_lieu = pd.read_excel('data/quant_surveiller_lieu_q_h_'+ str(q_h) + '_' + str(q_b) + '.xlsx')
-    data_orig = pd.read_excel('data/actions_'+ str(q_h) + '_' + str(q_b) + '.xlsx')
+    data_orig = pd.read_excel('data/new_data_end_' + str(q_h) + '_' + str(q_b) + '.xlsx').drop(['Unnamed: 0', 'id'],axis=1)
+    print(data_orig.columns)
     #data = data_orig.loc[data_orig['genre'] == genre].copy()
-    data = data_orig.loc[data_orig['soin'] == 'à surveiller'].copy()
+    data = pd.DataFrame()
+    if col == 'soin':
+        data = data_orig.loc[data_orig[col] == 'à surveiller'].copy()
+    elif col == 'ratio':
+        print('OK')
+        data = data_orig.loc[data_orig[col] < 0.5].copy()
+        print(data['lieu'].count())
+    elif col == 'remarquable':
+        data = data_orig.loc[data_orig[col] == 1].copy()
     data = data.drop_duplicates(subset='lieu', ignore_index=True)
+    print(data['lieu'].count())
 #    data.drop('id', axis=1, inplace=True)
  #   data.drop('numero', axis=1, inplace=True)
  #   mask = data['variete'] == ''
@@ -307,13 +343,12 @@ def christofides(q_h=0.95, q_b=0.05):
     x = lieu_aire.reset_index()
     q7 = """SELECT  data.lieu as lieu,
                     data.arrondissement as arrond,
-                    data.lat as lat,
-                    data.lon as lon,
+                    data.geo_point_2d_a as lat,
+                    data.geo_point_2d_b as lon,
                     x.aire as aire
                     FROM data INNER JOIN x ON data.lieu == x.lieu ORDER BY lieu"""
     df_graph = ps.sqldf(q7, locals())
     arr_list = [
-
         'PARIS 1ER ARRDT',
         'PARIS 2E ARRDT',
         'PARIS 3E ARRDT',
@@ -345,45 +380,75 @@ def christofides(q_h=0.95, q_b=0.05):
     nb_lieu_dict = dict()
     info_dict = dict()
     for arr in arr_list:
-        print('Pour l\'arrondissement ' + arr + ' : \n')
-        df_graph.loc[df_graph['arrond'] == arr].to_excel('data/export_df_graph.xlsx')
+        if (not df_graph.loc[df_graph['arrond'] == arr].empty)&(df_graph['lieu'].loc[df_graph['arrond'] == arr].count()>4):
+            print('df_graph',str(df_graph.loc[df_graph['arrond'] == arr].count()))
+            print('Pour l\'arrondissement ' + arr + ' : \n')
+            df_graph.loc[df_graph['arrond'] == arr].to_excel('data/export_df_graph.xlsx')
 
-        global d  # Notre table de données
-        global SIZE
-        matrix()
+            global d  # Notre table de données
+            global SIZE
+            matrix()
 
-        distances_gpu = pd.read_pickle(
-            PICKLE_FILE_1)  # .drop(['Unnamed: 0'], axis=1).rename(columns={'Unnamed: 0.1':'lieu'})
-        distances_gpu['lieu'] = distances_gpu.columns
-        distances_gpu.index = distances_gpu['lieu']
-        distances_gpu.drop(['lieu'], axis=1, inplace=True)
-        SIZE = len(distances_gpu.index)
-        d = distances_gpu.iloc[:SIZE, :SIZE].copy()
+            distances_gpu = pd.read_pickle(
+                PICKLE_FILE_1)  # .drop(['Unnamed: 0'], axis=1).rename(columns={'Unnamed: 0.1':'lieu'})
+            distances_gpu['lieu'] = distances_gpu.columns
+            distances_gpu.index = distances_gpu['lieu']
+            distances_gpu.drop(['lieu'], axis=1, inplace=True)
+            SIZE = len(distances_gpu.index)
+            d = distances_gpu.iloc[:SIZE, :SIZE].copy()
 
-        list_pm, km = poids_min(d)
-        print('Au départ le chemin de poids mininum est : ', km)
-        list_imp, list_imp_sec = impair(list_pm)
-        list_imp_pm, km_imp = poids_min_impair(list_imp)
-        union = liaison(list_pm, list_imp_sec)
+            list_pm, km = poids_min(d)
+            print('Au départ le chemin de poids mininum est : ', km)
+            list_imp, list_imp_sec = impair(list_pm)
+            list_imp_pm, km_imp = poids_min_impair(list_imp)
+            union = liaison(list_pm, list_imp_sec)
 
-        chemin = Graph(union)
-        for i in range(len(union)):
-            chemin.add_edge(i)
-        print(chemin)
+            chemin = Graph(union)
+            for i in range(len(union)):
+                chemin.add_edge(i)
+            print(chemin)
 
-        print('le chemin de poids nominal était de : ', int(km), 'km\n[fin]\n\n')
-        road_dict.update({arr: chemin.road})
-        km_dict.update({arr: chemin.km_final})
-        km_pm_dict.update({arr: km})
-        nb_lieu_dict.update({arr: len(chemin.road)})
+            print('le chemin de poids nominal était de : ', int(km), 'km\n[fin]\n\n')
+            road_dict.update({arr: chemin.road})
+            km_dict.update({arr: chemin.km_final})
+            km_pm_dict.update({arr: km})
+            nb_lieu_dict.update({arr: len(chemin.road)})
+        else:
+            continue
     info_dict.update({'road': road_dict})
     info_dict.update({'km':km_dict})
     info_dict.update({'km_pm': km_pm_dict})
     info_dict.update({'nb_lieu': nb_lieu_dict})
-    write_to_pickle('data/chemin'+ '_' + str(q_h) + '_' + str(q_b) + '.dat', info_dict)
+    road_dict_df = dict()
+    for arr in arr_list:
+        try:
+            road_dict_df.update({arr: info_dict['road'][arr]})
+        except KeyError as e:
+            print(e)
+            pass
+    road_df = pd.DataFrame.from_dict(road_dict_df, orient='index')
+    road_df.transpose().to_excel('data/chemin_par_' + col + '_arrondissement_' + str(q_h) + '_' + str(q_b) + '.xlsx')
+    write_to_pickle('data/chemin_'+ col +'_' + str(q_h) + '_' + str(q_b) + '.dat', info_dict)
+
+def chemin(q_h=0.95, q_b=0.05):
+    for col in ['soin', 'ratio', 'remarquable']:
+        chemin_note = pd.read_pickle('data/chemin_' + col + '_' + str(q_h) + '_' + str(q_b) + '.dat')
+        road_dict_df = dict()
+        for arr in arr_list:
+            try:
+                road_dict_df.update({arr: chemin_note['road'][arr]})
+            except KeyError as e:
+                print(e)
+                pass
+        road_df = pd.DataFrame.from_dict(road_dict_df, orient='index')
+        road_df.transpose().to_excel(
+            'data/chemin_par_' + col + '_arrondissement_' + str(q_h) + '_' + str(q_b) + '.xlsx')
 
 def main():
-    christofides()
+    christofides(col='soin')
+    christofides(col='ratio')
+    christofides(col='remarquable')
+    chemin()
 
 if __name__ == '__main__':
     main()
