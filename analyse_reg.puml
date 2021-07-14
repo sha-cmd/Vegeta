@@ -1,0 +1,17 @@
+
+@startuml
+'https://plantuml.com/sequence-diagram
+
+autonumber
+
+OpenData -> OpenData: Replace\n'Null'\nby 'n. sp.'
+OpenData -> DataFiltre: Select\npar intervalle\nde confiance\nsur la hauteur,\net la circonférence
+DataFiltre -> DataFiltre_Moy_Quant: Pour chaque\nlibelle_francais,\nchaque stade_dev,\nrégression linéaire\nde la hauteur\net de la circonférence
+DataFiltre <-> DataFiltre_Moy_Quant: Fusion dans\nla table Actions
+DataFiltre_Moy_Quant --> Actions: Intégration
+Actions -> Actions: Selection des arbres\nsi le rapport à rho est < 0.5
+Actions -> Actions: Selection des arbres remarquables
+Actions -> Graphiques: Quantifications :\nnombres par arrondissement,\nlieux, stades de développement\net croisement d'informations.
+Graphiques -> DataNew: Représentation\npar carte
+DataNew -> Christofides: Calcul du plus\ncourt chemin
+@enduml
