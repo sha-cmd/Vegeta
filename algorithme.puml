@@ -8,7 +8,7 @@ Surveillance -> Surveillance: paquetage\npar\narrondissement
 Surveillance --> GPU: Calcul de\nla matrice\ndes distances\nentre chaque\nlieu
 GPU --> Christofides: Calcul du\nchemin de\npoids\nminimum
 Christofides -> Christofides: Calcul des\nchemins impairs
-Christofides -> Christofides: Calcul de la\npermutation\nla + courte
+Christofides -> Christofides: Calcul des\nchemins d'Euler
 Christofides -> Pandas: Écriture\nen colonne\ndans le tableur
 Pandas --> User: Réception\ndu\nfichier
 @enduml
