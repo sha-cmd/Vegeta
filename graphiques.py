@@ -799,14 +799,19 @@ def data_compute(q_h, q_b):
     christofides.christofides(q_h, q_b, 'ratio')
     christofides.christofides(q_h, q_b, 'remarquable')
 
+
+def construct_data_end(q_h=0.95, q_b=0.05):
     actions_simple = pd.read_excel('data/actions_' + str(q_h) + '_' + str(q_b) + '.xlsx')
+    data_new = pd.read_excel('data/actions_' + str(q_h) + '_' + str(q_b) + '.xlsx')
     actions_simple = actions_simple.rename(columns={'lat': 'geo_point_2d_a', 'lon': 'geo_point_2d_b'})
     action_df_simple = actions_simple[['type_emplacement', 'domanialite', 'arrondissement',
                                        'complement_addresse', 'lieu', 'id_emplacement', 'libelle_francais',
-                                       'genre', 'espece', 'variete', 'circonference_cm', 'hauteur_m',
-                                       'stade_developpement', 'remarquable', 'slope', 'sante', 'geo_point_2d_a',
+                                       'genre', 'espece', 'variete', 'quantite_var_par_age', 'circonference_cm','value_moy_h','value_moy_c', 'hauteur_m',
+                                       'stade_developpement', 'remarquable', 'nb_arbre_meme_libel', 'slope', 'sante','nb_arbre_meme_libel_arr', 'geo_point_2d_a',
                                        'geo_point_2d_b', 'soin', 'correlation']].copy()
     action_df_simple['ratio'] = (action_df_simple['hauteur_m'].div(action_df_simple['circonference_cm'])).div(action_df_simple['slope'])
+    action_df_simple['danger'] = 0
+    action_df_simple.loc[action_df_simple['ratio'] < 0.5, 'danger'] = 1
     data_new = data.loc[((data["hauteur_m"] >= 21) | (data["hauteur_m"] <= 0))
                         | ((data["circonference_cm"] >= 255) | (data["circonference_cm"] <= 0))].copy()
     data_new['soin'] = 'à vérifier'
@@ -818,11 +823,11 @@ def data_compute(q_h, q_b):
 def main():
 
     for x, y in [[0.95, 0.05]]:#, [0.8, 0.2], [0.85, 0.15], [0.90, 0.10], [0.98, 0.02], [0.99, 0.01]]:
-
-        data_compute(x, y)
-        graphiques(x, y)
-        carte_danger(x,y)
-        carte_remarkability(x,y)
+        construct_data_end()
+        #data_compute(x, y)
+        #graphiques(x, y)
+        #carte_danger(x,y)
+        #carte_remarkability(x,y)
         # carte_positions(x, y)
 
 if __name__ == '__main__':
